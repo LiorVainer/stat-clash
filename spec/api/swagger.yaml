@@ -1,0 +1,2683 @@
+openapi: 3.0.0
+info:
+  title: API-FOOTBALL
+  version: 3.9.3
+  description:
+    API to access all API endpoints, which can get information about Football
+    Leagues & Cups.
+  contact:
+    url: https://www.api-football.com
+    email: support@api-football.com
+servers:
+  - url: https://v3.football.api-sports.io
+    description: API-SPORTS server
+  - url: https://api-football-v1.p.rapidapi.com/v3
+    description: RapidAPI server
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-rapidapi-key
+      description:
+        API key for authentication. Can also be 'x-apisports-key' depending
+        on the platform.
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        get:
+          type: string
+        parameters:
+          type: object
+        errors:
+          type: array
+          items: {}
+        results:
+          type: integer
+        paging:
+          type: object
+          properties:
+            current:
+              type: integer
+            total:
+              type: integer
+        response:
+          type: array
+          items: {}
+    PlayerInjuryInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 276
+        name:
+          type: string
+          example: Neymar Jr
+        photo:
+          type: string
+          format: url
+        type:
+          type: string
+        reason:
+          type: string
+    TeamInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        logo:
+          type: string
+          format: url
+    FixtureInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        timezone:
+          type: string
+        date:
+          type: string
+          format: date-time
+        timestamp:
+          type: integer
+          format: int64
+    Injury:
+      type: object
+      properties:
+        player:
+          $ref: "#/components/schemas/PlayerInjuryInfo"
+        team:
+          $ref: "#/components/schemas/TeamInfo"
+        fixture:
+          $ref: "#/components/schemas/FixtureInfo"
+    InjuriesApiResponse:
+      type: object
+      properties:
+        get:
+          type: string
+        parameters:
+          type: object
+        errors:
+          type: array
+          items: {}
+        results:
+          type: integer
+        paging:
+          type: object
+          properties:
+            current:
+              type: integer
+            total:
+              type: integer
+        response:
+          type: array
+          items:
+            $ref: "#/components/schemas/Injury"
+    LeagueCountry:
+      type: object
+      properties:
+        name:
+          type: string
+        code:
+          type: string
+          nullable: true
+        flag:
+          type: string
+          format: url
+          nullable: true
+    LeagueCoverageFixtures:
+      type: object
+      properties:
+        events:
+          type: boolean
+        lineups:
+          type: boolean
+        statistics_fixtures:
+          type: boolean
+        statistics_players:
+          type: boolean
+    LeagueCoverage:
+      type: object
+      properties:
+        fixtures:
+          $ref: "#/components/schemas/LeagueCoverageFixtures"
+        standings:
+          type: boolean
+        players:
+          type: boolean
+        top_scorers:
+          type: boolean
+        top_assists:
+          type: boolean
+        top_cards:
+          type: boolean
+        injuries:
+          type: boolean
+        predictions:
+          type: boolean
+        odds:
+          type: boolean
+    LeagueInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+        logo:
+          type: string
+          format: url
+    LeagueSeason:
+      type: object
+      properties:
+        year:
+          type: integer
+        start:
+          type: string
+          format: date
+        end:
+          type: string
+          format: date
+        current:
+          type: boolean
+        coverage:
+          $ref: "#/components/schemas/LeagueCoverage"
+    League:
+      type: object
+      properties:
+        league:
+          $ref: "#/components/schemas/LeagueInfo"
+        country:
+          $ref: "#/components/schemas/LeagueCountry"
+        seasons:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeagueSeason"
+    LeaguesApiResponse:
+      type: object
+      properties:
+        get:
+          type: string
+        parameters:
+          type: object
+        errors:
+          type: array
+          items: {}
+        results:
+          type: integer
+        paging:
+          type: object
+          properties:
+            current:
+              type: integer
+            total:
+              type: integer
+        response:
+          type: array
+          items:
+            $ref: "#/components/schemas/League"
+    Player:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        firstname:
+          type: string
+        lastname:
+          type: string
+        age:
+          type: integer
+        birth:
+          type: object
+          properties:
+            date:
+              type: string
+              format: date
+            place:
+              type: string
+            country:
+              type: string
+        nationality:
+          type: string
+        height:
+          type: string
+        weight:
+          type: string
+        injured:
+          type: boolean
+        photo:
+          type: string
+          format: url
+    TeamStats:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        logo:
+          type: string
+          format: url
+    LeagueStats:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        country:
+          type: string
+        logo:
+          type: string
+          format: url
+        flag:
+          type: string
+          format: url
+        season:
+          type: integer
+    GamesStats:
+      type: object
+      properties:
+        appearences:
+          type: integer
+        lineups:
+          type: integer
+        minutes:
+          type: integer
+        number:
+          type: integer
+          nullable: true
+        position:
+          type: string
+        rating:
+          type: string
+        captain:
+          type: boolean
+    SubstitutesStats:
+      type: object
+      properties:
+        in:
+          type: integer
+        out:
+          type: integer
+        bench:
+          type: integer
+    ShotsStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        on:
+          type: integer
+    GoalsStats:
+      type: object
+      properties:
+        total:
+          type: integer
+          nullable: true
+        conceded:
+          type: integer
+          nullable: true
+        assists:
+          type: integer
+          nullable: true
+        saves:
+          type: integer
+          nullable: true
+    PassesStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        key:
+          type: integer
+        accuracy:
+          type: integer
+    TacklesStats:
+      type: object
+      properties:
+        total:
+          type: integer
+          nullable: true
+        blocks:
+          type: integer
+          nullable: true
+        interceptions:
+          type: integer
+          nullable: true
+    DuelsStats:
+      type: object
+      properties:
+        total:
+          type: integer
+          nullable: true
+        won:
+          type: integer
+          nullable: true
+    DribblesStats:
+      type: object
+      properties:
+        attempts:
+          type: integer
+        success:
+          type: integer
+        past:
+          type: integer
+          nullable: true
+    FoulsStats:
+      type: object
+      properties:
+        drawn:
+          type: integer
+        committed:
+          type: integer
+    CardsStats:
+      type: object
+      properties:
+        yellow:
+          type: integer
+        yellowred:
+          type: integer
+        red:
+          type: integer
+    PenaltyStats:
+      type: object
+      properties:
+        won:
+          type: integer
+          nullable: true
+        commited:
+          type: integer
+          nullable: true
+        scored:
+          type: integer
+        missed:
+          type: integer
+        saved:
+          type: integer
+          nullable: true
+    PlayerStatistics:
+      type: object
+      properties:
+        team:
+          $ref: "#/components/schemas/TeamStats"
+        league:
+          $ref: "#/components/schemas/LeagueStats"
+        games:
+          $ref: "#/components/schemas/GamesStats"
+        substitutes:
+          $ref: "#/components/schemas/SubstitutesStats"
+        shots:
+          $ref: "#/components/schemas/ShotsStats"
+        goals:
+          $ref: "#/components/schemas/GoalsStats"
+        passes:
+          $ref: "#/components/schemas/PassesStats"
+        tackles:
+          $ref: "#/components/schemas/TacklesStats"
+        duels:
+          $ref: "#/components/schemas/DuelsStats"
+        dribbles:
+          $ref: "#/components/schemas/DribblesStats"
+        fouls:
+          $ref: "#/components/schemas/FoulsStats"
+        cards:
+          $ref: "#/components/schemas/CardsStats"
+        penalty:
+          $ref: "#/components/schemas/PenaltyStats"
+    PlayerWithStats:
+      type: object
+      properties:
+        player:
+          $ref: "#/components/schemas/Player"
+        statistics:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayerStatistics"
+    PlayersApiResponse:
+      type: object
+      properties:
+        get:
+          type: string
+        parameters:
+          type: object
+        errors:
+          type: array
+          items: {}
+        results:
+          type: integer
+        paging:
+          type: object
+          properties:
+            current:
+              type: integer
+            total:
+              type: integer
+        response:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayerWithStats"
+    FixturesPlayersApiResponse:
+      type: object
+      properties:
+        get:
+          type: string
+        parameters:
+          type: object
+        errors:
+          type: array
+          items: {}
+        results:
+          type: integer
+        paging:
+          type: object
+          properties:
+            current:
+              type: integer
+            total:
+              type: integer
+        response:
+          type: array
+          items:
+            type: object
+            properties:
+              team:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  logo:
+                    type: string
+                    format: url
+                  update:
+                    type: string
+                    format: date-time
+              players:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    player:
+                      $ref: "#/components/schemas/Player"
+                    statistics:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/PlayerStatistics"
+    FixturesApiResponse:
+      type: object
+      properties:
+        get:
+          type: string
+        parameters:
+          type: object
+        errors:
+          type: array
+          items: {}
+        results:
+          type: integer
+        paging:
+          type: object
+          properties:
+            current:
+              type: integer
+            total:
+              type: integer
+        response:
+          type: array
+          items:
+            type: object
+            properties:
+              fixture:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  referee:
+                    type: string
+                    nullable: true
+                  timezone:
+                    type: string
+                  date:
+                    type: string
+                    format: date-time
+                  timestamp:
+                    type: integer
+                  periods:
+                    type: object
+                    properties:
+                      first:
+                        type: integer
+                        nullable: true
+                      second:
+                        type: integer
+                        nullable: true
+                  venue:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      city:
+                        type: string
+                  status:
+                    type: object
+                    properties:
+                      long:
+                        type: string
+                      short:
+                        type: string
+                      elapsed:
+                        type: integer
+                        nullable: true
+                      extra:
+                        type: string
+                        nullable: true
+              league:
+                $ref: "#/components/schemas/LeagueStats"
+              teams:
+                type: object
+                properties:
+                  home:
+                    $ref: "#/components/schemas/TeamStats"
+                  away:
+                    $ref: "#/components/schemas/TeamStats"
+              goals:
+                type: object
+                properties:
+                  home:
+                    type: integer
+                    nullable: true
+                  away:
+                    type: integer
+                    nullable: true
+              score:
+                type: object
+                properties:
+                  halftime:
+                    type: object
+                    properties:
+                      home:
+                        type: integer
+                        nullable: true
+                      away:
+                        type: integer
+                        nullable: true
+                  fulltime:
+                    type: object
+                    properties:
+                      home:
+                        type: integer
+                        nullable: true
+                      away:
+                        type: integer
+                        nullable: true
+                  extratime:
+                    type: object
+                    properties:
+                      home:
+                        type: integer
+                        nullable: true
+                      away:
+                        type: integer
+                        nullable: true
+                  penalty:
+                    type: object
+                    properties:
+                      home:
+                        type: integer
+                        nullable: true
+                      away:
+                        type: integer
+                        nullable: true
+    StandingsApiResponse:
+      type: object
+      properties:
+        get:
+          type: string
+        parameters:
+          type: object
+        errors:
+          type: array
+          items: {}
+        results:
+          type: integer
+        paging:
+          type: object
+          properties:
+            current:
+              type: integer
+            total:
+              type: integer
+        response:
+          type: array
+          items:
+            type: object
+            properties:
+              league:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  country:
+                    type: string
+                  logo:
+                    type: string
+                    format: url
+                  flag:
+                    type: string
+                    format: url
+                  season:
+                    type: integer
+                  standings:
+                    type: array
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          rank:
+                            type: integer
+                          team:
+                            $ref: "#/components/schemas/TeamStats"
+                          points:
+                            type: integer
+                          goalsDiff:
+                            type: integer
+                          group:
+                            type: string
+                          form:
+                            type: string
+                          status:
+                            type: string
+                          description:
+                            type: string
+                          all:
+                            type: object
+                          home:
+                            type: object
+                          away:
+                            type: object
+                          update:
+                            type: string
+                            format: date-time
+    TeamStatisticsApiResponse:
+      type: object
+      properties:
+        get:
+          type: string
+        parameters:
+          type: object
+        errors:
+          type: array
+          items: {}
+        results:
+          type: integer
+        paging:
+          type: object
+          properties:
+            current:
+              type: integer
+            total:
+              type: integer
+        response:
+          type: object
+          properties:
+            league:
+              $ref: "#/components/schemas/LeagueStats"
+            team:
+              $ref: "#/components/schemas/TeamStats"
+            form:
+              type: string
+            fixtures:
+              type: object
+            goals:
+              type: object
+            biggest:
+              type: object
+            clean_sheet:
+              type: object
+            failed_to_score:
+              type: object
+            penalty:
+              type: object
+            lineups:
+              type: array
+              items:
+                type: object
+                properties:
+                  formation:
+                    type: string
+                  played:
+                    type: integer
+            cards:
+              type: object
+    TeamsApiResponse:
+      type: object
+      properties:
+        get:
+          type: string
+        parameters:
+          type: object
+        errors:
+          type: array
+          items: {}
+        results:
+          type: integer
+        paging:
+          type: object
+          properties:
+            current:
+              type: integer
+            total:
+              type: integer
+        response:
+          type: array
+          items:
+            type: object
+            properties:
+              team:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  code:
+                    type: string
+                  country:
+                    type: string
+                  founded:
+                    type: integer
+                  national:
+                    type: boolean
+                  logo:
+                    type: string
+                    format: url
+              venue:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  address:
+                    type: string
+                  city:
+                    type: string
+                  capacity:
+                    type: integer
+                  surface:
+                    type: string
+                  image:
+                    type: string
+                    format: url
+    TransfersApiResponse:
+      type: object
+      properties:
+        get:
+          type: string
+        parameters:
+          type: object
+        errors:
+          type: array
+          items: {}
+        results:
+          type: integer
+        paging:
+          type: object
+          properties:
+            current:
+              type: integer
+            total:
+              type: integer
+        response:
+          type: array
+          items:
+            type: object
+            properties:
+              player:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+              update:
+                type: string
+                format: date-time
+              transfers:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    date:
+                      type: string
+                      format: date
+                    type:
+                      type: string
+                      nullable: true
+                    teams:
+                      type: object
+                      properties:
+                        in:
+                          $ref: "#/components/schemas/TeamInfo"
+                        out:
+                          $ref: "#/components/schemas/TeamInfo"
+    TrophiesApiResponse:
+      type: object
+      properties:
+        get:
+          type: string
+        parameters:
+          type: object
+        errors:
+          type: array
+          items: {}
+        results:
+          type: integer
+        paging:
+          type: object
+          properties:
+            current:
+              type: integer
+            total:
+              type: integer
+        response:
+          type: array
+          items:
+            type: object
+            properties:
+              league:
+                type: string
+              country:
+                type: string
+              season:
+                type: string
+              place:
+                type: string
+    TimezoneResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    CountriesResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    LeaguesResponse:
+      $ref: "#/components/schemas/LeaguesApiResponse"
+    LeaguesSeasonsResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    TeamsResponse:
+      $ref: "#/components/schemas/TeamsApiResponse"
+    TeamsStatisticsResponse:
+      type: object
+      properties:
+        get:
+          type: string
+          example: teams/statistics
+        parameters:
+          type: object
+          properties:
+            league:
+              type: string
+              example: "39"
+            season:
+              type: string
+              example: "2019"
+            team:
+              type: string
+              example: "33"
+        errors:
+          type: array
+          items:
+            type: string
+        results:
+          type: integer
+        paging:
+          type: object
+          properties:
+            current:
+              type: integer
+            total:
+              type: integer
+        response:
+          type: object
+          properties:
+            league:
+              type: object
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+                country:
+                  type: string
+                logo:
+                  type: string
+                flag:
+                  type: string
+                season:
+                  type: integer
+            team:
+              type: object
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+                logo:
+                  type: string
+            form:
+              type: string
+            fixtures:
+              type: object
+              properties:
+                played:
+                  type: object
+                  properties:
+                    home:
+                      type: integer
+                    away:
+                      type: integer
+                    total:
+                      type: integer
+                wins:
+                  type: object
+                  properties:
+                    home:
+                      type: integer
+                    away:
+                      type: integer
+                    total:
+                      type: integer
+                draws:
+                  type: object
+                  properties:
+                    home:
+                      type: integer
+                    away:
+                      type: integer
+                    total:
+                      type: integer
+                loses:
+                  type: object
+                  properties:
+                    home:
+                      type: integer
+                    away:
+                      type: integer
+                    total:
+                      type: integer
+            goals:
+              type: object
+              properties:
+                for:
+                  type: object
+                  properties:
+                    total:
+                      type: object
+                      properties:
+                        home:
+                          type: integer
+                        away:
+                          type: integer
+                        total:
+                          type: integer
+                    average:
+                      type: object
+                      properties:
+                        home:
+                          type: string
+                        away:
+                          type: string
+                        total:
+                          type: string
+                    minute:
+                      type: object
+                      properties: &id001
+                        0-15:
+                          type: object
+                          properties:
+                            total:
+                              type:
+                                - integer
+                                - "null"
+                            percentage:
+                              type:
+                                - string
+                                - "null"
+                        16-30:
+                          type: object
+                          properties:
+                            total:
+                              type:
+                                - integer
+                                - "null"
+                            percentage:
+                              type:
+                                - string
+                                - "null"
+                        31-45:
+                          type: object
+                          properties:
+                            total:
+                              type:
+                                - integer
+                                - "null"
+                            percentage:
+                              type:
+                                - string
+                                - "null"
+                        46-60:
+                          type: object
+                          properties:
+                            total:
+                              type:
+                                - integer
+                                - "null"
+                            percentage:
+                              type:
+                                - string
+                                - "null"
+                        61-75:
+                          type: object
+                          properties:
+                            total:
+                              type:
+                                - integer
+                                - "null"
+                            percentage:
+                              type:
+                                - string
+                                - "null"
+                        76-90:
+                          type: object
+                          properties:
+                            total:
+                              type:
+                                - integer
+                                - "null"
+                            percentage:
+                              type:
+                                - string
+                                - "null"
+                        91-105:
+                          type: object
+                          properties:
+                            total:
+                              type:
+                                - integer
+                                - "null"
+                            percentage:
+                              type:
+                                - string
+                                - "null"
+                        106-120:
+                          type: object
+                          properties:
+                            total:
+                              type:
+                                - integer
+                                - "null"
+                            percentage:
+                              type:
+                                - string
+                                - "null"
+                    under_over:
+                      type: object
+                      properties: &id002
+                        "0.5":
+                          type: object
+                          properties:
+                            over:
+                              type: integer
+                            under:
+                              type: integer
+                        "1.5":
+                          type: object
+                          properties:
+                            over:
+                              type: integer
+                            under:
+                              type: integer
+                        "2.5":
+                          type: object
+                          properties:
+                            over:
+                              type: integer
+                            under:
+                              type: integer
+                        "3.5":
+                          type: object
+                          properties:
+                            over:
+                              type: integer
+                            under:
+                              type: integer
+                        "4.5":
+                          type: object
+                          properties:
+                            over:
+                              type: integer
+                            under:
+                              type: integer
+                against:
+                  type: object
+                  properties:
+                    total:
+                      type: object
+                      properties:
+                        home:
+                          type: integer
+                        away:
+                          type: integer
+                        total:
+                          type: integer
+                    average:
+                      type: object
+                      properties:
+                        home:
+                          type: string
+                        away:
+                          type: string
+                        total:
+                          type: string
+                    minute:
+                      type: object
+                      properties: *id001
+                    under_over:
+                      type: object
+                      properties: *id002
+            biggest:
+              type: object
+              properties:
+                streak:
+                  type: object
+                  properties:
+                    wins:
+                      type: integer
+                    draws:
+                      type: integer
+                    loses:
+                      type: integer
+                wins:
+                  type: object
+                  properties:
+                    home:
+                      type: string
+                    away:
+                      type: string
+                loses:
+                  type: object
+                  properties:
+                    home:
+                      type: string
+                    away:
+                      type: string
+                goals:
+                  type: object
+                  properties:
+                    for:
+                      type: object
+                      properties:
+                        home:
+                          type: integer
+                        away:
+                          type: integer
+                    against:
+                      type: object
+                      properties:
+                        home:
+                          type: integer
+                        away:
+                          type: integer
+            clean_sheet:
+              type: object
+              properties:
+                home:
+                  type: integer
+                away:
+                  type: integer
+                total:
+                  type: integer
+            failed_to_score:
+              type: object
+              properties:
+                home:
+                  type: integer
+                away:
+                  type: integer
+                total:
+                  type: integer
+            penalty:
+              type: object
+              properties:
+                scored:
+                  type: object
+                  properties:
+                    total:
+                      type: integer
+                    percentage:
+                      type: string
+                missed:
+                  type: object
+                  properties:
+                    total:
+                      type: integer
+                    percentage:
+                      type: string
+                total:
+                  type: integer
+            lineups:
+              type: array
+              items:
+                type: object
+                properties:
+                  formation:
+                    type: string
+                  played:
+                    type: integer
+            cards:
+              type: object
+              properties:
+                yellow:
+                  type: object
+                  properties: *id001
+                red:
+                  type: object
+                  properties: *id001
+    TeamsSeasonsResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    TeamsCountriesResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    VenuesResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    StandingsResponse:
+      $ref: "#/components/schemas/StandingsApiResponse"
+    FixturesRoundsResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    FixturesResponse:
+      $ref: "#/components/schemas/FixturesApiResponse"
+    FixturesHeadtoheadResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    FixturesStatisticsResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    FixturesEventsResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    FixturesLineupsResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    FixturesPlayersResponse:
+      $ref: "#/components/schemas/FixturesPlayersApiResponse"
+    InjuriesResponse:
+      $ref: "#/components/schemas/InjuriesApiResponse"
+    PredictionsResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    CoachsResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    PlayersSeasonsResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    PlayersResponse:
+      type: object
+      properties:
+        get:
+          type: string
+          example: players
+        parameters:
+          type: object
+          properties:
+            id:
+              type: string
+              example: "276"
+            season:
+              type: string
+              example: "2019"
+        errors:
+          type: array
+          items:
+            type: string
+        results:
+          type: integer
+        paging:
+          type: object
+          properties:
+            current:
+              type: integer
+            total:
+              type: integer
+        response:
+          type: array
+          items:
+            type: object
+            properties:
+              player:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  firstname:
+                    type: string
+                  lastname:
+                    type: string
+                  age:
+                    type: integer
+                  birth:
+                    type: object
+                    properties:
+                      date:
+                        type: string
+                        format: date
+                      place:
+                        type: string
+                      country:
+                        type: string
+                  nationality:
+                    type: string
+                  height:
+                    type: string
+                  weight:
+                    type: string
+                  injured:
+                    type: boolean
+                  photo:
+                    type: string
+              statistics:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    team:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        logo:
+                          type: string
+                    league:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        country:
+                          type: string
+                        logo:
+                          type: string
+                        flag:
+                          type: string
+                        season:
+                          type: integer
+                    games:
+                      type: object
+                      properties:
+                        appearences:
+                          type: integer
+                        lineups:
+                          type: integer
+                        minutes:
+                          type: integer
+                        number:
+                          type:
+                            - integer
+                            - "null"
+                        position:
+                          type: string
+                        rating:
+                          type: string
+                        captain:
+                          type: boolean
+                    substitutes:
+                      type: object
+                      properties:
+                        in:
+                          type: integer
+                        out:
+                          type: integer
+                        bench:
+                          type: integer
+                    shots:
+                      type: object
+                      properties:
+                        total:
+                          type: integer
+                        "on":
+                          type: integer
+                    goals:
+                      type: object
+                      properties:
+                        total:
+                          type: integer
+                        conceded:
+                          type:
+                            - integer
+                            - "null"
+                        assists:
+                          type: integer
+                        saves:
+                          type: integer
+                    passes:
+                      type: object
+                      properties:
+                        total:
+                          type: integer
+                        key:
+                          type: integer
+                        accuracy:
+                          type: integer
+                    tackles:
+                      type: object
+                      properties:
+                        total:
+                          type: integer
+                        blocks:
+                          type: integer
+                        interceptions:
+                          type: integer
+                    duels:
+                      type: object
+                      properties:
+                        total:
+                          type:
+                            - integer
+                            - "null"
+                        won:
+                          type:
+                            - integer
+                            - "null"
+                    dribbles:
+                      type: object
+                      properties:
+                        attempts:
+                          type: integer
+                        success:
+                          type: integer
+                        past:
+                          type:
+                            - integer
+                            - "null"
+                    fouls:
+                      type: object
+                      properties:
+                        drawn:
+                          type: integer
+                        committed:
+                          type: integer
+                    cards:
+                      type: object
+                      properties:
+                        yellow:
+                          type: integer
+                        yellowred:
+                          type: integer
+                        red:
+                          type: integer
+                    penalty:
+                      type: object
+                      properties:
+                        won:
+                          type: integer
+                        commited:
+                          type:
+                            - integer
+                            - "null"
+                        scored:
+                          type: integer
+                        missed:
+                          type: integer
+                        saved:
+                          type:
+                            - integer
+                            - "null"
+    PlayersSquadsResponse:
+      $ref: "#/components/schemas/SquadsResponse"
+    PlayersTopscorersResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    PlayersTopassistsResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    PlayersTopyellowcardsResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    PlayersTopredcardsResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    TransfersResponse:
+      $ref: "#/components/schemas/TransfersApiResponse"
+    TrophiesResponse:
+      $ref: "#/components/schemas/TrophiesApiResponse"
+    SidelinedResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    OddsResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    OddsLiveResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    OddsBookmakersResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    OddsBetsResponse:
+      $ref: "#/components/schemas/ApiResponse"
+    PlayersProfilesResponse:
+      type: object
+      properties:
+        get:
+          type: string
+          example: players/profiles
+        parameters:
+          type: object
+          properties:
+            player:
+              type: string
+              example: "276"
+        errors:
+          type: array
+          items:
+            type: string
+        results:
+          type: integer
+        paging:
+          type: object
+          properties:
+            current:
+              type: integer
+            total:
+              type: integer
+        response:
+          type: array
+          items:
+            type: object
+            properties:
+              player:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  firstname:
+                    type: string
+                  lastname:
+                    type: string
+                  age:
+                    type: integer
+                  birth:
+                    type: object
+                    properties:
+                      date:
+                        type: string
+                        format: date
+                      place:
+                        type: string
+                      country:
+                        type: string
+                  nationality:
+                    type: string
+                  height:
+                    type: string
+                  weight:
+                    type: string
+                  number:
+                    type: integer
+                    nullable: true
+                  position:
+                    type: string
+                    enum:
+                      - Goalkeeper
+                      - Defender
+                      - Midfielder
+                      - Attacker
+                  photo:
+                    type: string
+    SquadsResponse:
+      allOf:
+        - $ref: "#/components/schemas/BaseResponse"
+        - type: object
+          properties:
+            response:
+              type: array
+              items:
+                type: object
+                properties:
+                  team:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      logo:
+                        type: string
+                        format: uri
+                    required:
+                      - id
+                      - name
+                      - logo
+                  players:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        age:
+                          type: integer
+                        number:
+                          type:
+                            - integer
+                            - "null"
+                        position:
+                          type: string
+                        photo:
+                          type: string
+                          format: uri
+                      required:
+                        - id
+                        - name
+                        - age
+                        - position
+                        - photo
+                required:
+                  - team
+                  - players
+security:
+  - ApiKeyAuth: []
+paths:
+  /timezone:
+    get:
+      tags:
+        - General
+      summary: Get Timezones
+      description: Get the list of available timezones.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimezoneResponse"
+      parameters: []
+  /countries:
+    get:
+      tags:
+        - General
+      summary: Get Countries
+      description: Get the list of available countries.
+      parameters:
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CountriesResponse"
+  /leagues:
+    get:
+      tags:
+        - Leagues
+      summary: Get Leagues
+      description: Get the list of available leagues and cups.
+      parameters:
+        - name: id
+          in: query
+          schema:
+            type: integer
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: country
+          in: query
+          schema:
+            type: string
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: season
+          in: query
+          schema:
+            type: integer
+        - name: team
+          in: query
+          schema:
+            type: integer
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum:
+              - league
+              - cup
+        - name: current
+          in: query
+          schema:
+            type: string
+            enum:
+              - "true"
+              - "false"
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: last
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaguesResponse"
+  /leagues/seasons:
+    get:
+      tags:
+        - Leagues
+      summary: Get Seasons
+      description: Get the list of available seasons for leagues.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaguesSeasonsResponse"
+      parameters: []
+  /teams:
+    get:
+      tags:
+        - Teams
+      summary: Get Teams
+      description: Get information for a team.
+      parameters:
+        - name: id
+          in: query
+          schema:
+            type: integer
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: league
+          in: query
+          schema:
+            type: integer
+        - name: season
+          in: query
+          schema:
+            type: integer
+        - name: country
+          in: query
+          schema:
+            type: string
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: venue
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamsResponse"
+  /teams/statistics:
+    get:
+      tags:
+        - Teams
+      summary: Get Team Statistics
+      description: Get statistics for a team in a league for a season.
+      parameters:
+        - name: league
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: League ID
+        - name: season
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Season year
+        - name: team
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Team ID
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamsStatisticsResponse"
+  /teams/seasons:
+    get:
+      tags:
+        - Teams
+      summary: Get Team Seasons
+      description: Get the seasons available for a team.
+      parameters:
+        - name: team
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamsSeasonsResponse"
+  /teams/countries:
+    get:
+      tags:
+        - Teams
+      summary: Get Team Countries
+      description: Get a list of countries for teams.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamsCountriesResponse"
+      parameters: []
+  /venues:
+    get:
+      tags:
+        - Venues
+      summary: Get Venues
+      description: Get information for a venue.
+      parameters:
+        - name: id
+          in: query
+          schema:
+            type: integer
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: country
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VenuesResponse"
+  /standings:
+    get:
+      tags:
+        - Standings
+      summary: Get Standings
+      description: Get league standings.
+      parameters:
+        - name: league
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: season
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: team
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StandingsResponse"
+  /fixtures/rounds:
+    get:
+      tags:
+        - Fixtures
+      summary: Get Fixture Rounds
+      description: Get rounds for a league season.
+      parameters:
+        - name: league
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: season
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: current
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FixturesRoundsResponse"
+  /fixtures:
+    get:
+      tags:
+        - Fixtures
+      summary: Get Fixtures
+      description: Get fixtures for a date, league, or team.
+      parameters:
+        - name: id
+          in: query
+          schema:
+            type: integer
+        - name: ids
+          in: query
+          description: Comma-separated list of fixture IDs (max 20)
+          schema:
+            type: string
+        - name: live
+          in: query
+          schema:
+            type: string
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: league
+          in: query
+          schema:
+            type: integer
+        - name: season
+          in: query
+          schema:
+            type: integer
+        - name: team
+          in: query
+          schema:
+            type: integer
+        - name: last
+          in: query
+          schema:
+            type: integer
+        - name: next
+          in: query
+          schema:
+            type: integer
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: round
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: venue
+          in: query
+          schema:
+            type: integer
+        - name: timezone
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FixturesResponse"
+  /fixtures/headtohead:
+    get:
+      tags:
+        - Fixtures
+      summary: Head to Head
+      description: Get head-to-head fixtures for two teams.
+      parameters:
+        - name: h2h
+          in: query
+          required: true
+          description: Two team IDs separated by a dash (e.g., 33-34)
+          schema:
+            type: string
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FixturesHeadtoheadResponse"
+  /fixtures/statistics:
+    get:
+      tags:
+        - Fixtures
+      summary: Get Fixture Statistics
+      description: Get statistics for a single fixture.
+      parameters:
+        - name: fixture
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: team
+          in: query
+          schema:
+            type: integer
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FixturesStatisticsResponse"
+  /fixtures/events:
+    get:
+      tags:
+        - Fixtures
+      summary: Get Fixture Events
+      description: Get events for a single fixture.
+      parameters:
+        - name: fixture
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: team
+          in: query
+          schema:
+            type: integer
+        - name: player
+          in: query
+          schema:
+            type: integer
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum:
+              - Goal
+              - Card
+              - Subst
+              - Var
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FixturesEventsResponse"
+  /fixtures/lineups:
+    get:
+      tags:
+        - Fixtures
+      summary: Get Fixture Lineups
+      description: Get lineups for a single fixture.
+      parameters:
+        - name: fixture
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: team
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FixturesLineupsResponse"
+  /fixtures/players:
+    get:
+      tags:
+        - Fixtures
+      summary: Get Fixture Players Statistics
+      description: Get player statistics for a single fixture.
+      parameters:
+        - name: fixture
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: team
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FixturesPlayersResponse"
+  /injuries:
+    get:
+      tags:
+        - Injuries
+      summary: Get Injuries
+      description: Get injuries for a fixture, league, or team.
+      parameters:
+        - name: fixture
+          in: query
+          schema:
+            type: integer
+        - name: league
+          in: query
+          schema:
+            type: integer
+        - name: season
+          in: query
+          schema:
+            type: integer
+        - name: team
+          in: query
+          schema:
+            type: integer
+        - name: player
+          in: query
+          schema:
+            type: integer
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: timezone
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InjuriesResponse"
+  /predictions:
+    get:
+      tags:
+        - Predictions
+      summary: Get Predictions
+      description: Get predictions for a fixture.
+      parameters:
+        - name: fixture
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PredictionsResponse"
+  /coachs:
+    get:
+      tags:
+        - Coaches
+      summary: Get Coaches
+      description: Get information about coaches.
+      parameters:
+        - name: id
+          in: query
+          schema:
+            type: integer
+        - name: team
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachsResponse"
+  /players/seasons:
+    get:
+      tags:
+        - Players
+      summary: Get Player Seasons
+      description: Get available seasons for players statistics.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayersSeasonsResponse"
+      parameters: []
+  /players:
+    get:
+      tags:
+        - Players
+      summary: Get Players
+      description: Get players from a team, league, or search.
+      parameters:
+        - name: id
+          in: query
+          schema:
+            type: integer
+          required: true
+          description: Player ID
+        - name: team
+          in: query
+          schema:
+            type: integer
+        - name: league
+          in: query
+          schema:
+            type: integer
+        - name: season
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Season year
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayersResponse"
+  /players/squads:
+    get:
+      summary: Get squad players by team
+      parameters:
+        - in: query
+          name: team
+          schema:
+            type: integer
+          required: true
+          description: Team ID
+        - name: player
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayersSquadsResponse"
+  /players/topscorers:
+    get:
+      tags:
+        - Players
+      summary: Get Top Scorers
+      description: Get the top scorers for a league.
+      parameters:
+        - name: league
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: season
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayersTopscorersResponse"
+  /players/topassists:
+    get:
+      tags:
+        - Players
+      summary: Get Top Assists
+      description: Get the top assists for a league.
+      parameters:
+        - name: league
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: season
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayersTopassistsResponse"
+  /players/topyellowcards:
+    get:
+      tags:
+        - Players
+      summary: Get Top Yellow Cards
+      description: Get the top yellow cards for a league.
+      parameters:
+        - name: league
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: season
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayersTopyellowcardsResponse"
+  /players/topredcards:
+    get:
+      tags:
+        - Players
+      summary: Get Top Red Cards
+      description: Get the top red cards for a league.
+      parameters:
+        - name: league
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: season
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayersTopredcardsResponse"
+  /transfers:
+    get:
+      tags:
+        - Transfers
+      summary: Get Transfers
+      description: Get player transfers.
+      parameters:
+        - name: player
+          in: query
+          schema:
+            type: integer
+        - name: team
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransfersResponse"
+  /trophies:
+    get:
+      tags:
+        - Trophies
+      summary: Get Trophies
+      description: Get trophies for a player or coach.
+      parameters:
+        - name: player
+          in: query
+          schema:
+            type: integer
+        - name: coach
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrophiesResponse"
+  /sidelined:
+    get:
+      tags:
+        - Injuries
+      summary: Get Sidelined
+      description: Get sidelined information for a player or coach.
+      parameters:
+        - name: player
+          in: query
+          schema:
+            type: integer
+        - name: coach
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SidelinedResponse"
+  /odds:
+    get:
+      tags:
+        - Odds
+      summary: Get Pre-Match Odds
+      description: Get pre-match odds for fixtures.
+      parameters:
+        - name: fixture
+          in: query
+          schema:
+            type: integer
+        - name: league
+          in: query
+          schema:
+            type: integer
+        - name: season
+          in: query
+          schema:
+            type: integer
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: bookmaker
+          in: query
+          schema:
+            type: integer
+        - name: bet
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OddsResponse"
+  /odds/live:
+    get:
+      tags:
+        - Odds
+      summary: Get In-Play Odds
+      description: Get live, in-play odds for fixtures.
+      parameters:
+        - name: fixture
+          in: query
+          schema:
+            type: integer
+        - name: league
+          in: query
+          schema:
+            type: integer
+        - name: bet
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OddsLiveResponse"
+  /odds/bookmakers:
+    get:
+      tags:
+        - Odds
+      summary: Get Bookmakers
+      description: Get a list of available bookmakers.
+      parameters:
+        - name: id
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OddsBookmakersResponse"
+  /odds/bets:
+    get:
+      tags:
+        - Odds
+      summary: Get Bet Types
+      description: Get a list of available bet types for pre-match odds.
+      parameters:
+        - name: id
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OddsBetsResponse"
+  /players/profiles:
+    get:
+      summary: Get player profile by player ID
+      parameters:
+        - in: query
+          name: player
+          schema:
+            type: integer
+          required: true
+          description: Player ID
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayersProfilesResponse"
+
