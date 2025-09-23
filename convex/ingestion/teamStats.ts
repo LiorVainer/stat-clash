@@ -200,7 +200,7 @@ export const ingestTeamStats = internalAction({
                     if (!league) return;
 
                     await logger.info('Fetching teams for league', { league: league.name, season: resolvedSeason });
-                    const teams = await ctx.runQuery(internal.services.teams.getTeamsByLeague, {
+                    const teams = await ctx.runQuery(internal.services.teams.getTeamsByLeagueInDB, {
                         leagueId: league._id,
                     });
 

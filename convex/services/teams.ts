@@ -9,7 +9,7 @@ export const getTeam = internalQuery({
     handler: async (ctx, { teamId }): Promise<Doc<'teams'> | null> => ctx.db.get(teamId),
 });
 
-export const getTeamsByLeague = internalQuery({
+export const getTeamsByLeagueInDB = internalQuery({
     args: { leagueId: v.id('leagues'), limit: v.optional(v.number()) },
     handler: async (ctx, { leagueId, limit }): Promise<Doc<'teams'>[]> => {
         let q = ctx.db.query('teams').withIndex('by_league', (q) => q.eq('leagueId', leagueId));

@@ -65,7 +65,10 @@ export const ingestPlayers = internalAction({
 
             // Get detailed player data with full statistics and information
             const detailedPlayers = await footballService.getPlayersByIds(playerIds);
-            await logger.info(`Fetched detailed data for ${detailedPlayers.length} players`);
+            await logger.info(`Fetched detailed data for ${detailedPlayers.length} players`, {
+                playerIds,
+                providerTeamId: team.providerTeamId,
+            });
 
             // Create a map for quick lookup of detailed player data
             const detailedPlayerMap = new Map();

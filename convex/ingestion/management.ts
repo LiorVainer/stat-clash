@@ -120,6 +120,57 @@ export const triggerLeagueIngestion = mutation({
     },
 });
 
+// Mutation to trigger team stats ingestion
+export const triggerTeamStatsIngestion = mutation({
+    args: {
+        season: v.optional(v.string()),
+        leagueId: v.optional(v.id('leagues')),
+    },
+    handler: async (
+        ctx,
+        args,
+    ): Promise<{
+        success: boolean;
+        message: string;
+        timestamp: string;
+    }> => {
+        // Schedule the team stats ingestion to run as an internal action
+        await ctx.scheduler.runAfter(0, internal.ingestion.teamStats.ingestTeamStats, args);
+
+        return {
+            success: true,
+            message: 'Team stats ingestion scheduled',
+            timestamp: new Date().toISOString(),
+        };
+    },
+});
+
+// Mutation to trigger player stats ingestion
+export const triggerPlayerStatsIngestion = mutation({
+    args: {
+        season: v.optional(v.string()),
+        leagueId: v.optional(v.id('leagues')),
+        teamId: v.optional(v.id('teams')),
+    },
+    handler: async (
+        ctx,
+        args,
+    ): Promise<{
+        success: boolean;
+        message: string;
+        timestamp: string;
+    }> => {
+        // Schedule the player stats ingestion to run as an internal action
+        await ctx.scheduler.runAfter(0, internal.ingestion.playerStats.ingestPlayerStats, args);
+
+        return {
+            success: true,
+            message: 'Player stats ingestion scheduled',
+            timestamp: new Date().toISOString(),
+        };
+    },
+});
+
 // Query to get available leagues for ingestion
 export const getAvailableLeagues = query({
     args: {},
@@ -146,6 +197,48 @@ export const getAvailableLeagues = query({
             season: league.season,
             updatedAt: league.updatedAt,
         }));
+    },
+});
+
+// Query to get teams for a specific league (useful for targeted player stats ingestion)
+export const getTeamsByLeague = query({
+    args: {
+        leagueId: v.id('leagues'),
+    },
+    handler: async (
+        ctx,
+        { leagueId },
+    ): Promise<
+        Array<{
+            _id: Id<'teams'>;
+            name: string;
+            updatedAt: string;
+            playerCount?: number;
+        }>
+    > => {
+        const teams = await ctx.db
+            .query('teams')
+            .withIndex('by_league', (q) => q.eq('leagueId', leagueId))
+            .collect();
+
+        // Get player counts for each team
+        const teamsWithPlayerCounts = await Promise.all(
+            teams.map(async (team) => {
+                const players = await ctx.db
+                    .query('players')
+                    .withIndex('by_team', (q) => q.eq('teamId', team._id))
+                    .collect();
+
+                return {
+                    _id: team._id,
+                    name: team.name,
+                    updatedAt: team.updatedAt,
+                    playerCount: players.length,
+                };
+            }),
+        );
+
+        return teamsWithPlayerCounts;
     },
 });
 
@@ -200,5 +293,67 @@ export const getIngestionLogs = query({
             errors: log.errors,
             durationMs: log.durationMs,
         }));
+    },
+});
+
+// Query to get ingestion statistics including stats snapshots
+export const getIngestionStatsOverview = query({
+    args: {},
+    handler: async (
+        ctx,
+    ): Promise<{
+        entities: {
+            leagues: number;
+            teams: number;
+            players: number;
+        };
+        stats: {
+            teamStatsSnapshots: number;
+            playerStatsSnapshots: number;
+        };
+        lastUpdated: {
+            leagues: string | null;
+            teams: string | null;
+            players: string | null;
+            teamStats: string | null;
+            playerStats: string | null;
+        };
+    }> => {
+        // Get entity counts
+        const leagues = await ctx.db.query('leagues').collect();
+        const teams = await ctx.db.query('teams').collect();
+        const players = await ctx.db.query('players').collect();
+
+        // Get stats snapshot counts
+        const teamStatsSnapshots = await ctx.db.query('team_stats_snapshots').collect();
+        const playerStatsSnapshots = await ctx.db.query('player_stats_snapshots').collect();
+
+        // Get last updated timestamps
+        const getLatestTimestamp = (items: Array<{ updatedAt: string }>) =>
+            items.length > 0
+                ? items.reduce(
+                      (latest, item) => (new Date(item.updatedAt) > new Date(latest) ? item.updatedAt : latest),
+                      items[0].updatedAt,
+                  )
+                : null;
+
+        return {
+            entities: {
+                leagues: leagues.length,
+                teams: teams.length,
+                players: players.length,
+            },
+            stats: {
+                teamStatsSnapshots: teamStatsSnapshots.length,
+                playerStatsSnapshots: playerStatsSnapshots.length,
+            },
+            lastUpdated: {
+                leagues: getLatestTimestamp(leagues),
+                teams: getLatestTimestamp(teams),
+                players: getLatestTimestamp(players),
+                teamStats: getLatestTimestamp(teamStatsSnapshots),
+                playerStats: getLatestTimestamp(playerStatsSnapshots),
+            },
+        };
     },
 });

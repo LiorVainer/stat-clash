@@ -21,13 +21,13 @@ export const ingestPlayerStats = internalAction({
         const football = new FootballService(logger);
 
         const resolvedSeason = season || new Date().getFullYear().toString();
+        let teams: Array<Doc<'teams'>> = [];
+        let resolvedLeague: Doc<'leagues'> | null = null;
 
         try {
             await logger.info('Starting player stats ingestion', { season: resolvedSeason, leagueId, teamId });
 
             // Determine teams to process
-            let teams: Array<Doc<'teams'>> = [];
-            let resolvedLeague: Doc<'leagues'> | null = null;
 
             if (teamId) {
                 const team = await ctx.runQuery(internal.services.teams.getTeam, { teamId });
@@ -40,14 +40,14 @@ export const ingestPlayerStats = internalAction({
             } else if (leagueId) {
                 resolvedLeague = await ctx.runQuery(internal.services.leagues.getLeague, { leagueId });
                 if (resolvedLeague) {
-                    teams = await ctx.runQuery(internal.services.teams.getTeamsByLeague, { leagueId });
+                    teams = await ctx.runQuery(internal.services.teams.getTeamsByLeagueInDB, { leagueId });
                 }
             } else {
                 const leagues = await ctx.runQuery(internal.services.leagues.getTopLeagues, {});
                 // Fetch teams for all leagues in parallel
                 const allTeamsArrays = await Promise.all(
                     leagues.map((l) =>
-                        ctx.runQuery(internal.services.teams.getTeamsByLeague, {
+                        ctx.runQuery(internal.services.teams.getTeamsByLeagueInDB, {
                             leagueId: l._id,
                         }),
                     ),
@@ -65,12 +65,14 @@ export const ingestPlayerStats = internalAction({
                             (await ctx.runQuery(internal.services.leagues.getLeague, { leagueId: team.leagueId }));
                         if (!league) return;
 
-                        const players = await ctx.runQuery(internal.services.players.getPlayersByTeam, {
+                        const players = await ctx.runQuery(internal.services.players.getPlayersByTeamInDB, {
                             teamId: team._id,
                         });
                         if (!players.length) {
                             await logger.warn('No players found for team when ingesting stats (skipping)', {
                                 team: team.name,
+                                league: league.name,
+                                teamId: team._id,
                             });
                             return;
                         }
@@ -98,26 +100,37 @@ export const ingestPlayerStats = internalAction({
                                         teamLogoUrl: team.crestUrl,
                                         games: stats.games
                                             ? {
-                                                  appearances: stats.games.appearences,
-                                                  lineups: stats.games.lineups,
-                                                  minutes: stats.games.minutes,
+                                                  appearances:
+                                                      stats.games.appearences == null
+                                                          ? undefined
+                                                          : stats.games.appearences,
+                                                  lineups:
+                                                      stats.games.lineups == null ? undefined : stats.games.lineups,
+                                                  minutes:
+                                                      stats.games.minutes == null ? undefined : stats.games.minutes,
                                                   number: stats.games.number == null ? undefined : stats.games.number,
-                                                  position: stats.games.position,
-                                                  rating: stats.games.rating,
-                                                  captain: stats.games.captain,
+                                                  position:
+                                                      stats.games.position == null ? undefined : stats.games.position,
+                                                  rating: stats.games.rating == null ? undefined : stats.games.rating,
+                                                  captain:
+                                                      stats.games.captain == null ? undefined : stats.games.captain,
                                               }
                                             : undefined,
                                         substitutes: stats.substitutes
                                             ? {
-                                                  in: stats.substitutes.in,
-                                                  out: stats.substitutes.out,
-                                                  bench: stats.substitutes.bench,
+                                                  in: stats.substitutes.in == null ? undefined : stats.substitutes.in,
+                                                  out:
+                                                      stats.substitutes.out == null ? undefined : stats.substitutes.out,
+                                                  bench:
+                                                      stats.substitutes.bench == null
+                                                          ? undefined
+                                                          : stats.substitutes.bench,
                                               }
                                             : undefined,
                                         shots: stats.shots
                                             ? {
-                                                  total: stats.shots.total,
-                                                  onTarget: stats.shots.on,
+                                                  total: stats.shots.total == null ? undefined : stats.shots.total,
+                                                  onTarget: stats.shots.on == null ? undefined : stats.shots.on,
                                               }
                                             : undefined,
                                         goals: stats.goals
@@ -132,9 +145,10 @@ export const ingestPlayerStats = internalAction({
                                             : undefined,
                                         passes: stats.passes
                                             ? {
-                                                  total: stats.passes.total,
-                                                  key: stats.passes.key,
-                                                  accuracy: stats.passes.accuracy,
+                                                  total: stats.passes.total == null ? undefined : stats.passes.total,
+                                                  key: stats.passes.key == null ? undefined : stats.passes.key,
+                                                  accuracy:
+                                                      stats.passes.accuracy == null ? undefined : stats.passes.accuracy,
                                               }
                                             : undefined,
                                         tackles: stats.tackles
@@ -156,22 +170,30 @@ export const ingestPlayerStats = internalAction({
                                             : undefined,
                                         dribbles: stats.dribbles
                                             ? {
-                                                  attempts: stats.dribbles.attempts,
-                                                  success: stats.dribbles.success,
+                                                  attempts:
+                                                      stats.dribbles.attempts == null
+                                                          ? undefined
+                                                          : stats.dribbles.attempts,
+                                                  success:
+                                                      stats.dribbles.success == null
+                                                          ? undefined
+                                                          : stats.dribbles.success,
                                                   past: stats.dribbles.past == null ? undefined : stats.dribbles.past,
                                               }
                                             : undefined,
                                         fouls: stats.fouls
                                             ? {
-                                                  drawn: stats.fouls.drawn,
-                                                  committed: stats.fouls.committed,
+                                                  drawn: stats.fouls.drawn == null ? undefined : stats.fouls.drawn,
+                                                  committed:
+                                                      stats.fouls.committed == null ? undefined : stats.fouls.committed,
                                               }
                                             : undefined,
                                         cards: stats.cards
                                             ? {
-                                                  yellow: stats.cards.yellow,
-                                                  yellowRed: stats.cards.yellowred,
-                                                  red: stats.cards.red,
+                                                  yellow: stats.cards.yellow == null ? undefined : stats.cards.yellow,
+                                                  yellowRed:
+                                                      stats.cards.yellowred == null ? undefined : stats.cards.yellowred,
+                                                  red: stats.cards.red == null ? undefined : stats.cards.red,
                                               }
                                             : undefined,
                                         penalty: stats.penalty
@@ -181,8 +203,10 @@ export const ingestPlayerStats = internalAction({
                                                       stats.penalty.commited == null
                                                           ? undefined
                                                           : stats.penalty.commited,
-                                                  scored: stats.penalty.scored,
-                                                  missed: stats.penalty.missed,
+                                                  scored:
+                                                      stats.penalty.scored == null ? undefined : stats.penalty.scored,
+                                                  missed:
+                                                      stats.penalty.missed == null ? undefined : stats.penalty.missed,
                                                   saved: stats.penalty.saved == null ? undefined : stats.penalty.saved,
                                               }
                                             : undefined,
@@ -223,11 +247,11 @@ export const ingestPlayerStats = internalAction({
                                             team: team.name,
                                         });
                                     }
-                                } catch (err) {
+                                } catch (error) {
                                     await logger.error('Failed to ingest player stats', {
                                         player: player.name,
                                         team: team.name,
-                                        error: (err as Error).message,
+                                        error,
                                     });
                                 }
                             },
@@ -243,7 +267,7 @@ export const ingestPlayerStats = internalAction({
                 { concurrency: 3 },
             );
 
-            await logger.success('Player stats ingestion completed', { season: resolvedSeason });
+            await logger.success('Player stats ingestion completed', { season: resolvedSeason, leagueId, teamId });
             return { success: true } as const;
         } catch (error) {
             await logger.error('Player stats ingestion failed', { error: (error as Error).message });

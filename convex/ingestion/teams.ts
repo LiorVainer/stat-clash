@@ -2,7 +2,7 @@
 
 import { internalAction } from '../_generated/server';
 import { v } from 'convex/values';
-import { FootballService } from '../api/football/football.service';
+import { FootballService } from '../api/football/football';
 import { IngestionLogger } from '../logs/ingestion';
 import { validateTeamData } from '../lib/validation';
 import { internal } from '../_generated/api';

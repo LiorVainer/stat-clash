@@ -23,7 +23,7 @@ export const updatePlayer = internalMutation({
     handler: async (ctx, { playerId, data }) => ctx.db.patch(playerId, data),
 });
 
-export const getPlayersByTeam = internalQuery({
+export const getPlayersByTeamInDB = internalQuery({
     args: { teamId: v.id('teams') },
     handler: async (ctx, { teamId }): Promise<Doc<'players'>[]> =>
         ctx.db

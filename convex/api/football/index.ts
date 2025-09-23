@@ -1,2 +1,2 @@
-export * from './football.service';
+export * from './football';
 export * from './client';

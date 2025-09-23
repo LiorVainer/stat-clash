@@ -11,7 +11,7 @@ import Bluebird from 'bluebird';
 const API_CONFIG = {
     BASE_URL: 'https://v3.football.api-sports.io',
     PROVIDER_NAME: 'api-football',
-    DAILY_LIMIT: 100, // Free tier limit
+    DAILY_LIMIT: 7000, // Free tier limit
     LIMIT_WARNING_THRESHOLD: 0.9, // Warn at 90% of daily limit
     CONCURRENCY: {
         LEAGUES: 3, // Concurrent league API calls
@@ -254,7 +254,7 @@ export class FootballService {
         return allLeagues;
     }
 
-    async getTeamsByLeague(leagueId: string, season: string = '2024') {
+    async getTeamsByLeague(leagueId: string, season: string = '2025') {
         await this.logger.info('Fetching teams', { leagueId, season });
         const params = { league: leagueId, season };
         return this.withRetry(
@@ -286,7 +286,7 @@ export class FootballService {
         );
     }
 
-    async getPlayerStats(playerId: string, season: string = '2024'): Promise<PlayerStatistics | null> {
+    async getPlayerStats(playerId: string, season: string = '2025'): Promise<PlayerStatistics | null> {
         await this.logger.info('Fetching player stats', { playerId, season });
         const params = { id: playerId, season };
         return this.withRetry(

@@ -10,6 +10,7 @@
 
 import type * as agents_websiteAgent from "../agents/websiteAgent.js";
 import type * as api_football_client from "../api/football/client.js";
+import type * as api_football_football from "../api/football/football.js";
 import type * as api_football_index from "../api/football/index.js";
 import type * as crons from "../crons.js";
 import type * as guests from "../guests.js";
@@ -69,6 +70,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   "agents/websiteAgent": typeof agents_websiteAgent;
   "api/football/client": typeof api_football_client;
+  "api/football/football": typeof api_football_football;
   "api/football/index": typeof api_football_index;
   crons: typeof crons;
   guests: typeof guests;
