@@ -44,14 +44,12 @@ export const getPlayersWithTeamAndLeague = internalQuery({
     },
     handler: async (ctx, { limit = 50, teamName, teamProviderId, leagueName, playerName, positionId }) => {
         // Build the final query properly
-        const finalQuery = limit
-            ? ctx.db
+        const players = limit
+            ? await ctx.db
                   .query('players')
                   .order('desc')
                   .take(limit || 1000)
-            : ctx.db.query('players').collect();
-
-        const players = await finalQuery;
+            : await ctx.db.query('players').collect();
 
         // Fetch teams and leagues in parallel for better performance
         const teamIds = [...new Set(players.map((p) => p.teamId))];
@@ -171,4 +169,16 @@ export const searchPlayersWithJoins = internalQuery({
 
         return results;
     },
+});
+
+// Get player by provider ID (assumes 'api-football' provider)
+export const getPlayerByProviderId = internalQuery({
+    args: { providerPlayerId: v.string() },
+    handler: async (ctx, { providerPlayerId }): Promise<Doc<'players'> | null> =>
+        ctx.db
+            .query('players')
+            .withIndex('by_provider_player', (q) =>
+                q.eq('provider', 'api-football').eq('providerPlayerId', providerPlayerId),
+            )
+            .first(),
 });

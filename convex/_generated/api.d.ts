@@ -20,6 +20,7 @@ import type * as ingestion_leagues from "../ingestion/leagues.js";
 import type * as ingestion_management from "../ingestion/management.js";
 import type * as ingestion_orchestrator from "../ingestion/orchestrator.js";
 import type * as ingestion_playerStats from "../ingestion/playerStats.js";
+import type * as ingestion_playerTopStats from "../ingestion/playerTopStats.js";
 import type * as ingestion_players from "../ingestion/players.js";
 import type * as ingestion_teamStats from "../ingestion/teamStats.js";
 import type * as ingestion_teams from "../ingestion/teams.js";
@@ -80,6 +81,7 @@ declare const fullApi: ApiFromModules<{
   "ingestion/management": typeof ingestion_management;
   "ingestion/orchestrator": typeof ingestion_orchestrator;
   "ingestion/playerStats": typeof ingestion_playerStats;
+  "ingestion/playerTopStats": typeof ingestion_playerTopStats;
   "ingestion/players": typeof ingestion_players;
   "ingestion/teamStats": typeof ingestion_teamStats;
   "ingestion/teams": typeof ingestion_teams;

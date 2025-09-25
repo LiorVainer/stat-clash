@@ -182,7 +182,7 @@ export const ingestTeamStats = internalAction({
         const resolvedSeason = season || new Date().getFullYear().toString();
 
         try {
-            await logger.info('Starting team stats ingestion', { season: resolvedSeason, leagueId });
+            logger.info('Starting team stats ingestion', { season: resolvedSeason, leagueId });
 
             // Determine leagues to process (avoid filter(Boolean) which widens types)
             let leagues: Doc<'leagues'>[] = [];
@@ -199,8 +199,8 @@ export const ingestTeamStats = internalAction({
                 async (league) => {
                     if (!league) return;
 
-                    await logger.info('Fetching teams for league', { league: league.name, season: resolvedSeason });
-                    const teams = await ctx.runQuery(internal.services.teams.getTeamsByLeagueInDB, {
+                    logger.info('Fetching teams for league', { league: league.name, season: resolvedSeason });
+                    const teams: Doc<'teams'>[] = await ctx.runQuery(internal.services.teams.getTeamsByLeagueInDB, {
                         leagueId: league._id,
                     });
 
@@ -256,7 +256,7 @@ export const ingestTeamStats = internalAction({
                                             createdAt: existing.createdAt,
                                         },
                                     });
-                                    await logger.info('Updated team stats snapshot', {
+                                    logger.info('Updated team stats snapshot', {
                                         team: team.name,
                                         league: league.name,
                                     });
@@ -264,13 +264,13 @@ export const ingestTeamStats = internalAction({
                                     await ctx.runMutation(internal.services.teamStatsSnapshots.createTeamStats, {
                                         data: payload,
                                     });
-                                    await logger.info('Created team stats snapshot', {
+                                    logger.info('Created team stats snapshot', {
                                         team: team.name,
                                         league: league.name,
                                     });
                                 }
                             } catch (err) {
-                                await logger.error('Failed to ingest team stats', {
+                                logger.error('Failed to ingest team stats', {
                                     team: team.name,
                                     league: league.name,
                                     error: (err as Error).message,
@@ -286,7 +286,7 @@ export const ingestTeamStats = internalAction({
             await logger.success('Team stats ingestion completed', { season: resolvedSeason });
             return { success: true } as const;
         } catch (error) {
-            await logger.error('Team stats ingestion failed', { error: (error as Error).message });
+            logger.error('Team stats ingestion failed', { error: (error as Error).message });
             throw error;
         }
     },

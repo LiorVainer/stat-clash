@@ -3,11 +3,11 @@
 import { internalAction } from '../_generated/server';
 import { v } from 'convex/values';
 import { FootballService, SinglePlayersResponse } from '../api/football';
-import { IngestionLogger } from '../logs/ingestion';
 import { validatePlayerData } from '../lib/validation';
 import { internal } from '../_generated/api';
 import { Id } from '../_generated/dataModel';
 import Bluebird from 'bluebird';
+import { IngestionLogger } from '../logs/ingestion';
 
 export const ingestPlayers = internalAction({
     args: {
@@ -30,7 +30,6 @@ export const ingestPlayers = internalAction({
     }> => {
         const logger = new IngestionLogger(ctx, 'ingest-players');
         const footballService = new FootballService(logger);
-
         // Track comprehensive metrics for debugging
         const metrics = {
             apiPlayersRetrieved: 0,
@@ -49,7 +48,7 @@ export const ingestPlayers = internalAction({
         };
 
         try {
-            await logger.info('Starting player ingestion', {
+            logger.info('Starting player ingestion', {
                 teamId,
                 timestamp: new Date().toISOString(),
                 process: 'initialization',
@@ -59,11 +58,11 @@ export const ingestPlayers = internalAction({
             const team = await ctx.runQuery(internal.services.teams.getTeam, { teamId });
             if (!team) {
                 const errorMsg = `Team not found: ${teamId}`;
-                await logger.error(errorMsg, { teamId, process: 'team-lookup' });
+                logger.error(errorMsg, { teamId, process: 'team-lookup' });
                 throw new Error(errorMsg);
             }
 
-            await logger.info('Team found', {
+            logger.info('Team found', {
                 teamName: team.name,
                 teamId: team._id,
                 teamProviderId: team.providerTeamId,
@@ -77,7 +76,7 @@ export const ingestPlayers = internalAction({
             });
             if (!league) {
                 const errorMsg = `League not found: ${team.leagueId}`;
-                await logger.error(errorMsg, {
+                logger.error(errorMsg, {
                     leagueId: team.leagueId,
                     teamName: team.name,
                     process: 'league-lookup',
@@ -85,7 +84,7 @@ export const ingestPlayers = internalAction({
                 throw new Error(errorMsg);
             }
 
-            await logger.info('League found', {
+            logger.info('League found', {
                 leagueName: league.name,
                 leagueId: league._id,
                 leagueProviderId: league.providerLeagueId,
@@ -95,13 +94,13 @@ export const ingestPlayers = internalAction({
 
             // Check current API usage before starting
             const initialUsage = await footballService.getApiUsage();
-            await logger.info('Initial API usage', {
+            logger.info('Initial API usage', {
                 ...initialUsage,
                 process: 'api-usage-check',
             });
 
             // Fetch players from API-Football with detailed tracking
-            await logger.info('Fetching players from API', {
+            logger.info('Fetching players from API', {
                 teamName: team.name,
                 teamProviderId: team.providerTeamId,
                 process: 'api-players-fetch',
@@ -110,7 +109,7 @@ export const ingestPlayers = internalAction({
             const apiPlayers = await footballService.getPlayersByTeam(team.providerTeamId);
             metrics.apiPlayersRetrieved = apiPlayers.length;
 
-            await logger.info('Players fetched from API', {
+            logger.info('Players fetched from API', {
                 playersCount: apiPlayers.length,
                 teamName: team.name,
                 teamProviderId: team.providerTeamId,
@@ -119,7 +118,7 @@ export const ingestPlayers = internalAction({
             });
 
             if (!apiPlayers.length) {
-                await logger.warn('No players found in API for team', {
+                logger.warn('No players found in API for team', {
                     teamName: team.name,
                     teamProviderId: team.providerTeamId,
                     process: 'api-players-empty',
@@ -146,7 +145,7 @@ export const ingestPlayers = internalAction({
 
             metrics.playerIdsExtracted = playerIds.length;
 
-            await logger.info('Player IDs extracted', {
+            logger.info('Player IDs extracted', {
                 totalApiPlayers: apiPlayers.length,
                 validPlayerIds: playerIds.length,
                 invalidIds: apiPlayers.length - playerIds.length,
@@ -161,7 +160,7 @@ export const ingestPlayers = internalAction({
                     message: `${missingIds} players have invalid/missing IDs`,
                     meta: { teamName: team.name, missingIds },
                 });
-                await logger.warn('Some players have invalid IDs', {
+                logger.warn('Some players have invalid IDs', {
                     totalPlayers: apiPlayers.length,
                     validIds: playerIds.length,
                     invalidIds: missingIds,
@@ -170,7 +169,7 @@ export const ingestPlayers = internalAction({
             }
 
             // Get detailed player data with full statistics and information
-            await logger.info('Fetching detailed player data', {
+            logger.info('Fetching detailed player data', {
                 playerIdsCount: playerIds.length,
                 process: 'detailed-players-fetch',
             });
@@ -178,7 +177,7 @@ export const ingestPlayers = internalAction({
             const detailedPlayers = await footballService.getPlayersByIds(playerIds);
             metrics.detailedPlayersRetrieved = detailedPlayers.length;
 
-            await logger.info('Detailed player data fetched', {
+            logger.info('Detailed player data fetched', {
                 requestedIds: playerIds.length,
                 receivedPlayers: detailedPlayers.length,
                 missingDetailed: playerIds.length - detailedPlayers.length,
@@ -194,7 +193,7 @@ export const ingestPlayers = internalAction({
                     message: `${missingDetailed} players missing detailed data`,
                     meta: { teamName: team.name, missingDetailed },
                 });
-                await logger.warn('Some players missing detailed data', {
+                logger.warn('Some players missing detailed data', {
                     requestedIds: playerIds.length,
                     receivedDetailed: detailedPlayers.length,
                     missingCount: missingDetailed,
@@ -212,7 +211,7 @@ export const ingestPlayers = internalAction({
                 }
             });
 
-            await logger.info('Detailed player mapping completed', {
+            logger.info('Detailed player mapping completed', {
                 totalDetailedPlayers: detailedPlayers.length,
                 successfullyMapped: metrics.detailedPlayersMapped,
                 mappingIssues: detailedPlayers.length - metrics.detailedPlayersMapped,
@@ -220,7 +219,7 @@ export const ingestPlayers = internalAction({
             });
 
             // Process players in parallel with concurrency limit of 8, using detailed player data
-            await logger.info('Starting parallel player processing', {
+            logger.info('Starting parallel player processing', {
                 totalPlayers: apiPlayers.length,
                 concurrency: 8,
                 process: 'players-processing-start',
@@ -231,7 +230,7 @@ export const ingestPlayers = internalAction({
                 async (basicPlayerData, playerIndex) => {
                     const playerStartTime = Date.now();
                     try {
-                        await logger.info(`Processing player ${playerIndex + 1}/${apiPlayers.length}`, {
+                        logger.info(`Processing player ${playerIndex + 1}/${apiPlayers.length}`, {
                             playerName: basicPlayerData.name,
                             playerId: basicPlayerData.id,
                             teamName: team.name,
@@ -244,7 +243,7 @@ export const ingestPlayers = internalAction({
                         const detailedPlayerData = detailedPlayerMap.get(basicPlayerData.id);
 
                         if (!detailedPlayerData?.player) {
-                            await logger.warn('No detailed data available for player', {
+                            logger.warn('No detailed data available for player', {
                                 playerName: basicPlayerData.name,
                                 playerId: basicPlayerData.id,
                                 fallbackToBasic: true,
@@ -262,7 +261,7 @@ export const ingestPlayers = internalAction({
                         const positionCode = playerStats?.games?.position || basicPlayerData.position;
                         const positionId = positionCode;
 
-                        await logger.info('Player data prepared for processing', {
+                        logger.info('Player data prepared for processing', {
                             playerName: playerData.name,
                             hasDetailedData: !!detailedPlayerData,
                             positionCode,
@@ -275,6 +274,8 @@ export const ingestPlayers = internalAction({
                         // Transform API data to our schema with enhanced data
                         const transformedPlayer = {
                             name: playerData?.name,
+                            firstName: playerData.firstname,
+                            lastName: playerData.lastname,
                             position: positionCode,
                             nationality: playerData?.nationality,
                             photoUrl: playerData?.photo,
@@ -286,7 +287,7 @@ export const ingestPlayers = internalAction({
                         let validatedPlayer;
                         try {
                             validatedPlayer = validatePlayerData(transformedPlayer);
-                            await logger.info('Player data validation successful', {
+                            logger.info('Player data validation successful', {
                                 playerName: transformedPlayer.name,
                                 process: 'data-validation',
                             });
@@ -297,7 +298,7 @@ export const ingestPlayers = internalAction({
                                 message: (validationError as Error).message,
                                 meta: { playerName: transformedPlayer.name, playerData: transformedPlayer },
                             });
-                            await logger.error('Player data validation failed', {
+                            logger.error('Player data validation failed', {
                                 playerName: transformedPlayer.name,
                                 error: (validationError as Error).message,
                                 playerData: transformedPlayer,
@@ -323,6 +324,8 @@ export const ingestPlayers = internalAction({
                                     playerId: existingPlayer._id,
                                     data: {
                                         name: validatedPlayer.name,
+                                        lastName: validatedPlayer.lastName,
+                                        firstName: validatedPlayer.firstName,
                                         teamId: team._id,
                                         leagueId: league._id,
                                         positionId: positionId,
@@ -332,7 +335,7 @@ export const ingestPlayers = internalAction({
                                         updatedAt: new Date().toISOString(),
                                     },
                                 });
-                                await logger.info('Player updated successfully', {
+                                logger.info('Player updated successfully', {
                                     playerName: validatedPlayer.name,
                                     existingPlayerId: existingPlayer._id,
                                     hasDetailedData: !!detailedPlayerData,
@@ -347,7 +350,7 @@ export const ingestPlayers = internalAction({
                                     message: (dbError as Error).message,
                                     meta: { playerName: validatedPlayer.name, existingPlayerId: existingPlayer._id },
                                 });
-                                await logger.error('Failed to update player in database', {
+                                logger.error('Failed to update player in database', {
                                     playerName: validatedPlayer.name,
                                     existingPlayerId: existingPlayer._id,
                                     error: (dbError as Error).message,
@@ -363,6 +366,8 @@ export const ingestPlayers = internalAction({
                                         teamId: team._id,
                                         leagueId: league._id,
                                         name: validatedPlayer.name,
+                                        lastName: validatedPlayer.lastName,
+                                        firstName: validatedPlayer.firstName,
                                         positionId: positionId as Id<'positions'>,
                                         nationality: validatedPlayer.nationality,
                                         photoUrl: validatedPlayer.photoUrl,
@@ -373,7 +378,7 @@ export const ingestPlayers = internalAction({
                                         updatedAt: new Date().toISOString(),
                                     },
                                 });
-                                await logger.info('Player created successfully', {
+                                logger.info('Player created successfully', {
                                     playerName: validatedPlayer.name,
                                     hasDetailedData: !!detailedPlayerData,
                                     processingTimeMs: Date.now() - playerStartTime,
@@ -387,7 +392,7 @@ export const ingestPlayers = internalAction({
                                     message: (dbError as Error).message,
                                     meta: { playerName: validatedPlayer.name },
                                 });
-                                await logger.error('Failed to create player in database', {
+                                logger.error('Failed to create player in database', {
                                     playerName: validatedPlayer.name,
                                     error: (dbError as Error).message,
                                     process: 'database-create',
@@ -405,7 +410,7 @@ export const ingestPlayers = internalAction({
                                 teamName: team.name,
                             },
                         });
-                        await logger.error('Failed to process player', {
+                        logger.error('Failed to process player', {
                             playerName: basicPlayerData.name,
                             playerId: basicPlayerData.id,
                             error: (error as Error).message,
@@ -428,7 +433,7 @@ export const ingestPlayers = internalAction({
 
             // Get final usage statistics
             const finalUsage = await footballService.getApiUsage();
-            await logger.info('Final API usage', {
+            logger.info('Final API usage', {
                 ...finalUsage,
                 process: 'api-usage-final',
             });
@@ -440,7 +445,7 @@ export const ingestPlayers = internalAction({
                 .filter((r) => r.type === 'error')
                 .map((r) => ({ name: r.name, error: r.error }));
 
-            await logger.info('Player processing results breakdown', {
+            logger.info('Player processing results breakdown', {
                 createdPlayers: createdPlayers.slice(0, 10), // First 10 for brevity
                 updatedPlayers: updatedPlayers.slice(0, 10), // First 10 for brevity
                 errorPlayers: errorPlayers.slice(0, 5), // First 5 for brevity
@@ -491,7 +496,7 @@ export const ingestPlayers = internalAction({
 
             // Log warnings for common issues
             if (metrics.missingDetailedData > 0) {
-                await logger.warn('Some players missing detailed API data', {
+                logger.warn('Some players missing detailed API data', {
                     missingCount: metrics.missingDetailedData,
                     totalPlayers: metrics.apiPlayersRetrieved,
                     percentage: ((metrics.missingDetailedData / metrics.apiPlayersRetrieved) * 100).toFixed(2) + '%',
@@ -500,7 +505,7 @@ export const ingestPlayers = internalAction({
             }
 
             if (metrics.validationErrors > 0) {
-                await logger.warn('Some players failed data validation', {
+                logger.warn('Some players failed data validation', {
                     validationErrors: metrics.validationErrors,
                     totalPlayers: metrics.apiPlayersRetrieved,
                     percentage: ((metrics.validationErrors / metrics.apiPlayersRetrieved) * 100).toFixed(2) + '%',
@@ -511,7 +516,7 @@ export const ingestPlayers = internalAction({
             return { success: true, summary };
         } catch (error) {
             const errorMsg = (error as Error).message;
-            await logger.error('Player ingestion failed', {
+            logger.error('Player ingestion failed', {
                 error: errorMsg,
                 errorStack: (error as Error).stack,
                 teamId,

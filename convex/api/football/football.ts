@@ -11,17 +11,17 @@ import Bottleneck from 'bottleneck';
 const API_CONFIG = {
     BASE_URL: 'https://v3.football.api-sports.io',
     PROVIDER_NAME: 'api-football',
-    DAILY_LIMIT: 7000, // Free tier limit
+    DAILY_LIMIT: 11000, // Free tier limit
     LIMIT_WARNING_THRESHOLD: 0.9, // Warn at 90% of daily limit
     // Bottleneck rate limiting configuration
     RATE_LIMIT: {
         // 280 requests per minute (buffer under 300 limit)
         maxConcurrent: 5, // Max concurrent requests
-        minTime: 0, // Minimum time between requests (ms) - 250ms = ~240 req/min max
-        reservoir: 280, // Initial number of requests available
+        minTime: 250, // Minimum time between requests (ms) - 250ms = ~240 req/min max
+        reservoir: 250, // Initial number of requests available
         reservoirRefreshAmount: 300 / 60, // add 5 tokens each interval
         reservoirRefreshInterval: 1000, // every 1 second
-        reservoirIncreaseMaximum: 280,
+        reservoirIncreaseMaximum: 250,
     },
     CONCURRENCY: {
         LEAGUES: 3, // Concurrent league API calls
@@ -357,7 +357,6 @@ export class FootballService {
         };
     }
 
-    // New method to get detailed usage statistics
     async getUsageStats(startDate: string, endDate: string) {
         try {
             return await this.convexClient.query(api.usage_tracking.usageHandler.getUsageStats, {
@@ -425,7 +424,7 @@ export class FootballService {
         leagueId: string,
         season: string = new Date().getFullYear().toString(),
     ): Promise<StatisticsListData['response'] | null> {
-        this.logger.info('Fetching team stats', { teamId, leagueId, season });
+        await this.logger.info('Fetching team stats', { teamId, leagueId, season });
         const params = { team: teamId, league: leagueId, season };
         return this.withRetry(
             async () => {
@@ -438,6 +437,162 @@ export class FootballService {
                 return response.response || null;
             },
             RESOURCES.TEAM_STATS,
+            params,
+        );
+    }
+
+    // NEW: Top Statistics Methods with Position Tracking
+    async getTopScorers(leagueId: string, season: string = new Date().getFullYear().toString()) {
+        await this.logger.info('Fetching top scorers', { leagueId, season });
+        const params = { league: leagueId, season };
+        return this.withRetry(
+            async () => {
+                const response = await this.apiClient.players.topscorersList({
+                    league: parseInt(leagueId),
+                    season: parseInt(season),
+                });
+                return response.response || [];
+            },
+            'top-scorers',
+            params,
+        );
+    }
+
+    async getTopAssists(leagueId: string, season: string = new Date().getFullYear().toString()) {
+        await this.logger.info('Fetching top assists', { leagueId, season });
+        const params = { league: leagueId, season };
+        return this.withRetry(
+            async () => {
+                const response = await this.apiClient.players.topassistsList({
+                    league: parseInt(leagueId),
+                    season: parseInt(season),
+                });
+                return response.response || [];
+            },
+            'top-assists',
+            params,
+        );
+    }
+
+    async getTopYellowCards(leagueId: string, season: string = new Date().getFullYear().toString()) {
+        await this.logger.info('Fetching top yellow cards', { leagueId, season });
+        const params = { league: leagueId, season };
+        return this.withRetry(
+            async () => {
+                const response = await this.apiClient.players.topyellowcardsList({
+                    league: parseInt(leagueId),
+                    season: parseInt(season),
+                });
+                return response.response || [];
+            },
+            'top-yellow-cards',
+            params,
+        );
+    }
+
+    async getTopRedCards(leagueId: string, season: string = new Date().getFullYear().toString()) {
+        await this.logger.info('Fetching top red cards', { leagueId, season });
+        const params = { league: leagueId, season };
+        return this.withRetry(
+            async () => {
+                const response = await this.apiClient.players.topredcardsList({
+                    league: parseInt(leagueId),
+                    season: parseInt(season),
+                });
+                return response.response || [];
+            },
+            'top-red-cards',
+            params,
+        );
+    }
+
+    // NEW: Enhanced methods that store position data in player_stats_snapshots
+    async getTopGoalsWithPositions(leagueId: string, season: string = new Date().getFullYear().toString()) {
+        const topScorers = await this.getTopScorers(leagueId, season);
+        const playersWithPositions = topScorers.map((playerStats, index) => ({
+            ...playerStats,
+            position: index + 1,
+            leaguePosition: { [leagueId]: index + 1 },
+        }));
+
+        return playersWithPositions;
+    }
+
+    async getTopAssistsWithPositions(leagueId: string, season: string = new Date().getFullYear().toString()) {
+        const topAssists = await this.getTopAssists(leagueId, season);
+        const playersWithPositions = topAssists.map((playerStats, index) => ({
+            ...playerStats,
+            position: index + 1,
+            leaguePosition: { [leagueId]: index + 1 },
+        }));
+
+        return playersWithPositions;
+    }
+
+    async getTopYellowCardsWithPositions(leagueId: string, season: string = new Date().getFullYear().toString()) {
+        const topYellowCards = await this.getTopYellowCards(leagueId, season);
+        const playersWithPositions = topYellowCards.map((playerStats, index) => ({
+            ...playerStats,
+            position: index + 1,
+            leaguePosition: { [leagueId]: index + 1 },
+        }));
+
+        return playersWithPositions;
+    }
+
+    async getTopRedCardsWithPositions(leagueId: string, season: string = new Date().getFullYear().toString()) {
+        const topRedCards = await this.getTopRedCards(leagueId, season);
+        const playersWithPositions = topRedCards.map((playerStats, index) => ({
+            ...playerStats,
+            position: index + 1,
+            leaguePosition: { [leagueId]: index + 1 },
+        }));
+
+        return playersWithPositions;
+    }
+
+    // NEW: Combined method to get all top statistics with positions for a league
+    async getAllTopStatisticsWithPositions(leagueId: string, season: string = new Date().getFullYear().toString()) {
+        this.logger.info('Fetching all top statistics with positions', { leagueId, season });
+
+        const [topGoals, topAssists, topYellowCards, topRedCards] = await Promise.all([
+            this.getTopGoalsWithPositions(leagueId, season),
+            this.getTopAssistsWithPositions(leagueId, season),
+            this.getTopYellowCardsWithPositions(leagueId, season),
+            this.getTopRedCardsWithPositions(leagueId, season),
+        ]);
+
+        return {
+            topGoals,
+            topAssists,
+            topYellowCards,
+            topRedCards,
+            summary: {
+                leagueId,
+                season,
+                totalPlayers: new Set([
+                    ...topGoals.map((p) => p.player?.id),
+                    ...topAssists.map((p) => p.player?.id),
+                    ...topYellowCards.map((p) => p.player?.id),
+                    ...topRedCards.map((p) => p.player?.id),
+                ]).size,
+                updatedAt: new Date().toISOString(),
+            },
+        };
+    }
+
+    async getLeaguesStandings(leagueId: string, season: string = new Date().getFullYear().toString()) {
+        this.logger.info('Fetching league standings', { leagueId, season });
+        const params = { league: leagueId, season };
+        return this.withRetry(
+            async () => {
+                const response = await this.apiClient.standings.standingsList({
+                    league: parseInt(leagueId),
+                    season: parseInt(season),
+                });
+                return response.response || [];
+            },
+            'league-standings',
             params,
         );
     }

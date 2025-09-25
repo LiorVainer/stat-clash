@@ -25,15 +25,15 @@ export const ingestLeagues = internalAction({
         const footballService = new FootballService(logger);
 
         try {
-            await logger.info('Starting league ingestion');
+            logger.info('Starting league ingestion');
 
             // Check current API usage before starting
             const usage = await footballService.getApiUsage();
-            await logger.info('Current API usage', usage);
+            logger.info('Current API usage', usage);
 
             // Fetch leagues from API-Football using predefined league IDs
             const apiLeagues = await footballService.getLeaguesByIds(TOP_LEAGUE_IDS);
-            await logger.info(`Fetched ${apiLeagues.length} leagues from API`);
+            logger.info(`Fetched ${apiLeagues.length} leagues from API`);
 
             let processed = 0;
             let created = 0;
@@ -73,7 +73,7 @@ export const ingestLeagues = internalAction({
                             },
                         });
                         updated++;
-                        await logger.info(`Updated league: ${validatedLeague.name}`);
+                        logger.info(`Updated league: ${validatedLeague.name}`);
                     } else {
                         // Create new league
                         await ctx.runMutation(internal.services.leagues.createLeague, {
@@ -88,11 +88,11 @@ export const ingestLeagues = internalAction({
                             },
                         });
                         created++;
-                        await logger.info(`Created league: ${validatedLeague.name}`);
+                        logger.info(`Created league: ${validatedLeague.name}`);
                     }
                 } catch (error) {
                     errors++;
-                    await logger.error(`Failed to process league`, {
+                    logger.error(`Failed to process league`, {
                         error: (error as Error).message,
                         leagueData,
                     });
@@ -101,7 +101,7 @@ export const ingestLeagues = internalAction({
 
             // Get final usage statistics
             const finalUsage = await footballService.getApiUsage();
-            await logger.info('Final API usage', finalUsage);
+            logger.info('Final API usage', finalUsage);
 
             const summary = {
                 processed,
@@ -111,10 +111,10 @@ export const ingestLeagues = internalAction({
                 usage: finalUsage,
             };
 
-            await logger.info('League ingestion completed', summary);
+            logger.info('League ingestion completed', summary);
             return { success: true, summary };
         } catch (error) {
-            await logger.error('League ingestion failed', { error: (error as Error).message });
+            logger.error('League ingestion failed', { error: (error as Error).message });
             throw error;
         }
     },

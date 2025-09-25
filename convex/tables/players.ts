@@ -5,6 +5,8 @@ export const playerFields = {
     teamId: v.id('teams'),
     leagueId: v.id('leagues'),
     name: v.string(),
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
     positionId: v.string(),
     nationality: v.optional(v.string()),
     photoUrl: v.optional(v.string()),

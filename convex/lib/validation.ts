@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 // Player Data Validation Schema
 export const PlayerDataSchema = z.object({
+    firstName: z.string().min(1),
+    lastName: z.string().min(1),
     name: z.string().min(1),
     position: z.string().min(1),
     nationality: z.string().optional(),

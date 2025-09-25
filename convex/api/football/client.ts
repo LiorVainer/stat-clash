@@ -758,24 +758,7 @@ export type CoachsResponse = ApiResponse;
 
 export type PlayersSeasonsResponse = ApiResponse;
 
-export interface SinglePlayersResponse {
-    player?: Player;
-    statistics?: {
-        team?: TeamStats;
-        league?: LeagueStats;
-        games?: GamesStats;
-        substitutes?: SubstitutesStats;
-        shots?: ShotsStats;
-        goals?: GoalsStats;
-        passes?: PassesStats;
-        tackles?: TacklesStats;
-        duels?: DuelsStats;
-        dribbles?: DribblesStats;
-        fouls?: FoulsStats;
-        cards?: CardsStats;
-        penalty?: PenaltyStats;
-    }[];
-}
+export type SinglePlayersResponse = PlayerWithStats;
 
 export interface PlayersResponseFull
     extends BaseResponse<
@@ -790,13 +773,13 @@ export interface PlayersResponseFull
 
 export type PlayersSquadsResponse = SquadsResponse;
 
-export type PlayersTopscorersResponse = ApiResponse;
+export interface PlayersTopscorersResponse extends BaseResponse<PlayerWithStats[]> {}
 
-export type PlayersTopassistsResponse = ApiResponse;
+export interface PlayersTopassistsResponse extends BaseResponse<PlayerWithStats[]> {}
 
-export type PlayersTopyellowcardsResponse = ApiResponse;
+export interface PlayersTopyellowcardsResponse extends BaseResponse<PlayerWithStats[]> {}
 
-export type PlayersTopredcardsResponse = ApiResponse;
+export interface PlayersTopredcardsResponse extends BaseResponse<PlayerWithStats[]> {}
 
 export type TransfersResponse = TransfersApiResponse;
 
@@ -1048,31 +1031,24 @@ export interface SquadsListParams {
 
 export type SquadsListData = PlayersSquadsResponse;
 
-export interface TopscorersListParams {
+export type LeaguesSeasonParams = {
     league: number;
     season: number;
-}
+};
+
+export type TopscorersListParams = LeaguesSeasonParams;
 
 export type TopscorersListData = PlayersTopscorersResponse;
 
-export interface TopassistsListParams {
-    league: number;
-    season: number;
-}
+export type TopassistsListParams = LeaguesSeasonParams;
 
 export type TopassistsListData = PlayersTopassistsResponse;
 
-export interface TopyellowcardsListParams {
-    league: number;
-    season: number;
-}
+export type TopyellowcardsListParams = LeaguesSeasonParams;
 
 export type TopyellowcardsListData = PlayersTopyellowcardsResponse;
 
-export interface TopredcardsListParams {
-    league: number;
-    season: number;
-}
+export type TopredcardsListParams = LeaguesSeasonParams;
 
 export type TopredcardsListData = PlayersTopredcardsResponse;
 
@@ -1322,7 +1298,7 @@ export class FootballApi<SecurityDataType extends unknown = unknown> extends Htt
         }
     };
 
-    isErrorResponse = (response: ApiResponse) => {
+    isErrorResponse = (response: BaseResponse) => {
         const isArrayError = response.errors && 'length' in response.errors && response.errors.length > 0;
         const isObjectError =
             response.errors && !('length' in response.errors) && Object.keys(response.errors).length > 0;

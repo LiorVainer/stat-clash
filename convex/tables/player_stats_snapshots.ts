@@ -63,6 +63,18 @@ export const playerStatsSnapshotsFields = {
             saved: v.optional(v.number()),
         }),
     ),
+    // NEW: League position rankings for different statistics
+    leaguePositions: v.optional(
+        v.record(
+            v.id('leagues'),
+            v.object({
+                goals: v.optional(v.number()), // Position in top scorers (1-based)
+                assists: v.optional(v.number()), // Position in top assists (1-based)
+                yellowCards: v.optional(v.number()), // Position in yellow cards (1-based)
+                redCards: v.optional(v.number()), // Position in red cards (1-based)
+            }),
+        ),
+    ),
     updatedAt: v.string(),
     createdAt: v.string(),
 };
