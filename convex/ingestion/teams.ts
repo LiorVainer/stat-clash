@@ -15,7 +15,7 @@ export const ingestTeams = internalAction({
     },
     handler: async (
         ctx,
-        { leagueId, season = '2024' },
+        { leagueId, season = '2025' },
     ): Promise<{
         success: boolean;
         summary: {

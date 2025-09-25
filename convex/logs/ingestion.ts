@@ -1,6 +1,5 @@
 'use node';
 
-import { CustomLogLevel } from './levels.logger';
 import { Timer } from './timer';
 import { ActionCtx } from '../_generated/server';
 import { BaseLogger } from './base-logger.logger';
@@ -38,51 +37,26 @@ export class IngestionLogger extends BaseLogger {
         this.metrics.jobType = jobType;
     }
 
-    // Log to multiple destinations: Console + Convex table + Logtail (if enabled)
-    private async baseLog(level: CustomLogLevel, message: string, data?: Record<string, any>) {
-        const timestamp = new Date().toISOString();
-
-        this.log(level, message, data);
-
-        try {
-            await this.ctx.runMutation(internal.services.logs.createIngestionLog, {
-                jobType: this.jobType,
-                level,
-                message,
-                data: data || {},
-                timestamp,
-                // Include current metrics snapshot
-                apiCalls: this.metrics.apiCalls,
-                recordsProcessed: this.metrics.recordsProcessed,
-                recordsCreated: this.metrics.recordsCreated,
-                recordsUpdated: this.metrics.recordsUpdated,
-                errors: this.metrics.errors,
-                durationMs: this.timer.total(),
-            });
-        } catch (error) {
-            console.error('Failed to write to ingestion_logs table:', error);
-        }
+    override info(message: string, data?: Record<string, any>) {
+        this.log('info', message, { ...data, ...this.metrics });
     }
 
-    async info(message: string, data?: Record<string, any>) {
-        await this.baseLog('info', message, data);
+    override warn(message: string, data?: Record<string, any>) {
+        this.log('warn', message, { ...data, ...this.metrics });
     }
 
-    async warn(message: string, data?: Record<string, any>) {
-        await this.baseLog('warn', message, data);
-    }
-
-    async error(message: string, data?: Record<string, any>) {
+    override error(message: string, data?: Record<string, any>) {
         this.metrics.errors++;
-        await this.baseLog('error', message, data);
+        this.log('error', message, { ...data, ...this.metrics });
     }
 
-    async success(message: string, data?: Record<string, any>) {
-        await this.baseLog('success', message, data);
+    override success(message: string, data?: Record<string, any>) {
+        this.log('success', message, { ...data, ...this.metrics });
     }
 
     // Log API calls to the dedicated api_ingest_log table using interface
     async logApiCall(params: ApiCallLogParams) {
+        this.log('info', `API call: ${params.provider} ${params.resource}`, params);
         this.metrics.apiCalls++;
 
         try {

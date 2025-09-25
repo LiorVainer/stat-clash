@@ -9,10 +9,24 @@ import Bluebird from 'bluebird';
 export const runFullIngestion = internalAction({
     args: {
         season: v.optional(v.string()),
+        initializeReferenceData: v.optional(v.boolean()),
+        ingestLeagues: v.optional(v.boolean()),
+        ingestTeams: v.optional(v.boolean()),
+        ingestPlayers: v.optional(v.boolean()),
+        ingestTeamStats: v.optional(v.boolean()),
+        ingestPlayerStats: v.optional(v.boolean()),
     },
     handler: async (
         ctx,
-        { season = '2025' },
+        {
+            season = '2025',
+            initializeReferenceData = true,
+            ingestLeagues = true,
+            ingestTeams = true,
+            ingestPlayers = true,
+            ingestTeamStats = true,
+            ingestPlayerStats = true,
+        },
     ): Promise<{
         success: boolean;
         summary: {
@@ -23,21 +37,44 @@ export const runFullIngestion = internalAction({
             teamStatsIngested: boolean;
             season: string;
             completedAt: string;
+            stepsSkipped: string[];
         };
     }> => {
         const logger = new IngestionLogger(ctx, 'full-ingestion-pipeline');
+        const stepsSkipped: string[] = [];
 
         try {
-            await logger.info('Starting full ingestion pipeline', { season });
+            await logger.info('Starting full ingestion pipeline', {
+                season,
+                flags: {
+                    initializeReferenceData,
+                    ingestLeagues,
+                    ingestTeams,
+                    ingestPlayers,
+                    ingestTeamStats,
+                    ingestPlayerStats,
+                },
+            });
 
             // Step 1: Initialize reference data (positions, windows)
-            await logger.info('Step 1: Initializing reference data');
-            await ctx.runAction(internal.ingestion.initialize.initializeReferenceData, {});
+            if (initializeReferenceData) {
+                await logger.info('Step 1: Initializing reference data');
+                await ctx.runAction(internal.ingestion.initialize.initializeReferenceData, {});
+            } else {
+                stepsSkipped.push('initialize-reference-data');
+                await logger.info('Step 1: Skipping reference data initialization (flag disabled)');
+            }
 
             // Step 2: Ingest leagues
-            await logger.info('Step 2: Ingesting leagues');
-            const leagueResult = await ctx.runAction(internal.ingestion.leagues.ingestLeagues, {});
-            await logger.info('League ingestion completed', leagueResult.summary);
+            let leagueResult = { summary: { processed: 0 } };
+            if (ingestLeagues) {
+                await logger.info('Step 2: Ingesting leagues');
+                leagueResult = await ctx.runAction(internal.ingestion.leagues.ingestLeagues, {});
+                await logger.info('League ingestion completed', leagueResult.summary);
+            } else {
+                stepsSkipped.push('ingest-leagues');
+                await logger.info('Step 2: Skipping leagues ingestion (flag disabled)');
+            }
 
             // Step 3: Get top leagues to focus on (limit API calls)
             const topLeagues = await ctx.runQuery(internal.services.leagues.getTopLeagues, {});
@@ -46,97 +83,118 @@ export const runFullIngestion = internalAction({
             let totalPlayersProcessed = 0;
 
             // Step 4: Ingest teams for all leagues in parallel with concurrency limit of 3
-            const teamResults = await Bluebird.map(
-                topLeagues,
-                async (league) => {
-                    await logger.info(`Step 4: Ingesting teams for league: ${league.name}`);
+            if (ingestTeams) {
+                const teamResults = await Bluebird.map(
+                    topLeagues,
+                    async (league) => {
+                        await logger.info(`Step 4: Ingesting teams for league: ${league.name}`);
 
-                    const teamResult = await ctx.runAction(internal.ingestion.teams.ingestTeams, {
-                        leagueId: league._id,
-                        season,
-                    });
+                        const teamResult = await ctx.runAction(internal.ingestion.teams.ingestTeams, {
+                            leagueId: league._id,
+                            season,
+                        });
 
-                    await logger.info(`Teams ingestion completed for ${league.name}`, teamResult.summary);
-                    return {
-                        league: league.name,
-                        teamsProcessed: teamResult.summary.processed,
-                        teamResult,
-                    };
-                },
-                { concurrency: 3 },
-            ); // Process 3 leagues concurrently
+                        await logger.info(`Teams ingestion completed for ${league.name}`, teamResult.summary);
+                        return {
+                            league: league.name,
+                            teamsProcessed: teamResult.summary.processed,
+                            teamResult,
+                        };
+                    },
+                    { concurrency: 3 },
+                ); // Process 3 leagues concurrently
 
-            // Sum up team results
-            totalTeamsProcessed = teamResults.reduce((sum, result) => sum + result.teamsProcessed, 0);
-
-            await logger.info('Step 5: Starting parallel player ingestion for all teams');
-
-            // Get all teams from all leagues and process them in parallel
-            const allTeamsPromises = topLeagues.map((league) =>
-                ctx.runQuery(internal.services.teams.getTeamsByLeagueInDB, {
-                    leagueId: league._id,
-                    limit: 20, // Limit to 20 teams per league to manage API usage
-                }),
-            );
-
-            const allTeamsArrays = await Promise.all(allTeamsPromises);
-            const allTeams = allTeamsArrays.flat(); // Flatten all teams into single array
-
-            await logger.info(`Found ${allTeams.length} teams across ${allTeamsArrays.length} leagues`);
-
-            // Process all teams' players in parallel with concurrency limit of 5
-            const playerResults = await Bluebird.map(
-                allTeams,
-                async (team) => {
-                    await logger.info(`Step 5: Ingesting players for team: ${team.name}`);
-
-                    const playerResult = await ctx.runAction(internal.ingestion.players.ingestPlayers, {
-                        teamId: team._id,
-                    });
-
-                    await logger.info(`Player ingestion completed for ${team.name}`, playerResult.summary);
-                    return {
-                        team: team.name,
-                        playersProcessed: playerResult.summary.processed,
-                        playerResult,
-                    };
-                },
-                { concurrency: 5 },
-            ); // Process 5 teams' players concurrently
-
-            // Sum up player results
-            totalPlayersProcessed = playerResults.reduce((sum, result) => sum + result.playersProcessed, 0);
-
-            // Step 6: Ingest team statistics for all leagues
-            await logger.info('Step 6: Starting team statistics ingestion for all leagues');
-
-            let teamStatsIngested = false;
-            try {
-                await ctx.runAction(internal.ingestion.teamStats.ingestTeamStats, {
-                    season,
-                    // No leagueId specified to process all top leagues
-                });
-                teamStatsIngested = true;
-                await logger.info('Team statistics ingestion completed successfully');
-            } catch (error) {
-                await logger.error('Team statistics ingestion failed', { error: (error as Error).message });
-                // Continue with pipeline even if team stats fail
+                // Sum up team results
+                totalTeamsProcessed = teamResults.reduce((sum, result) => sum + result.teamsProcessed, 0);
+            } else {
+                stepsSkipped.push('ingest-teams');
+                await logger.info('Step 4: Skipping teams ingestion (flag disabled)');
             }
 
-            // Step 7: Ingest player statistics (only if players were ingested)
-            let playerStatsIngested = false;
-            await logger.info('Step 7: Starting player statistics ingestion');
+            // Step 5: Ingest players
+            if (ingestPlayers && topLeagues.length > 0) {
+                await logger.info('Step 5: Starting parallel player ingestion for all teams');
 
-            try {
-                await ctx.runAction(internal.ingestion.playerStats.ingestPlayerStats, {
-                    season,
-                    // No leagueId or teamId specified to process all available players
-                });
-                playerStatsIngested = true;
-                await logger.info('Player statistics ingestion completed successfully');
-            } catch (error) {
-                await logger.error('Player statistics ingestion failed', { error: (error as Error).message });
-                // Continue with pipeline even if player stats fail
+                // Get all teams from all leagues and process them in parallel
+                const allTeamsPromises = topLeagues.map((league) =>
+                    ctx.runQuery(internal.services.teams.getTeamsByLeagueInDB, {
+                        leagueId: league._id,
+                        limit: 20, // Limit to 20 teams per league to manage API usage
+                    }),
+                );
+
+                const allTeamsArrays = await Promise.all(allTeamsPromises);
+                const allTeams = allTeamsArrays.flat(); // Flatten all teams into single array
+
+                await logger.info(`Found ${allTeams.length} teams across ${allTeamsArrays.length} leagues`);
+
+                // Process all teams' players in parallel with concurrency limit of 5
+                const playerResults = await Bluebird.map(
+                    allTeams,
+                    async (team) => {
+                        await logger.info(`Step 5: Ingesting players for team: ${team.name}`);
+
+                        const playerResult = await ctx.runAction(internal.ingestion.players.ingestPlayers, {
+                            teamId: team._id,
+                        });
+
+                        await logger.info(`Player ingestion completed for ${team.name}`, playerResult.summary);
+                        return {
+                            team: team.name,
+                            playersProcessed: playerResult.summary.processed,
+                            playerResult,
+                        };
+                    },
+                    { concurrency: 5 },
+                ); // Process 5 teams' players concurrently
+
+                // Sum up player results
+                totalPlayersProcessed = playerResults.reduce((sum, result) => sum + result.playersProcessed, 0);
+            } else {
+                stepsSkipped.push('ingest-players');
+                await logger.info('Step 5: Skipping players ingestion (flag disabled or no leagues available)');
+            }
+
+            // Step 6: Ingest team statistics for all leagues
+            let teamStatsIngested = false;
+            if (ingestTeamStats) {
+                await logger.info('Step 6: Starting team statistics ingestion for all leagues');
+
+                try {
+                    await ctx.runAction(internal.ingestion.teamStats.ingestTeamStats, {
+                        season,
+                        // No leagueId specified to process all top leagues
+                    });
+                    teamStatsIngested = true;
+                    await logger.info('Team statistics ingestion completed successfully');
+                } catch (error) {
+                    await logger.error('Team statistics ingestion failed', { error: (error as Error).message });
+                    // Continue with pipeline even if team stats fail
+                }
+            } else {
+                stepsSkipped.push('ingest-team-stats');
+                await logger.info('Step 6: Skipping team statistics ingestion (flag disabled)');
+            }
+
+            // Step 7: Ingest player statistics
+            let playerStatsIngested = false;
+            if (ingestPlayerStats) {
+                await logger.info('Step 7: Starting player statistics ingestion');
+
+                try {
+                    await ctx.runAction(internal.ingestion.playerStats.ingestPlayerStats, {
+                        season,
+                        // No leagueId or teamId specified to process all available players
+                    });
+                    playerStatsIngested = true;
+                    await logger.info('Player statistics ingestion completed successfully');
+                } catch (error) {
+                    await logger.error('Player statistics ingestion failed', { error: (error as Error).message });
+                    // Continue with pipeline even if player stats fail
+                }
+            } else {
+                stepsSkipped.push('ingest-player-stats');
+                await logger.info('Step 7: Skipping player statistics ingestion (flag disabled)');
             }
 
             const finalSummary = {
@@ -147,6 +205,7 @@ export const runFullIngestion = internalAction({
                 teamStatsIngested,
                 season,
                 completedAt: new Date().toISOString(),
+                stepsSkipped,
             };
 
             await logger.info('Full ingestion pipeline completed successfully', finalSummary);

@@ -1,3 +1,5 @@
+'use node';
+
 /* eslint-disable */
 /* tslint:disable */
 // @ts-nocheck
@@ -10,17 +12,24 @@
  * ---------------------------------------------------------------
  */
 
-export interface ApiResponse {
+// Base generic response type
+import { BaseLogger } from '../../logs/base-logger.logger';
+import type { AxiosInstance, AxiosRequestConfig, HeadersDefaults, ResponseType } from 'axios';
+import axios from 'axios';
+
+export interface BaseResponse<TResponse = object, TParameters = object, TErrors = object | any[]> {
     get?: string;
-    parameters?: object;
-    errors?: any[];
+    parameters?: TParameters;
+    errors?: TErrors;
     results?: number;
     paging?: {
         current?: number;
         total?: number;
     };
-    response?: any[];
+    response?: TResponse;
 }
+
+export interface ApiResponse extends BaseResponse {}
 
 export interface PlayerInjuryInfo {
     /** @example 276 */
@@ -55,17 +64,7 @@ export interface Injury {
     fixture?: FixtureInfo;
 }
 
-export interface InjuriesApiResponse {
-    get?: string;
-    parameters?: object;
-    errors?: any[];
-    results?: number;
-    paging?: {
-        current?: number;
-        total?: number;
-    };
-    response?: Injury[];
-}
+export interface InjuriesApiResponse extends BaseResponse<Injury[]> {}
 
 export interface LeagueCountry {
     name?: string;
@@ -117,17 +116,7 @@ export interface League {
     seasons?: LeagueSeason[];
 }
 
-export interface LeaguesApiResponse {
-    get?: string;
-    parameters?: object;
-    errors?: any[];
-    results?: number;
-    paging?: {
-        current?: number;
-        total?: number;
-    };
-    response?: League[];
-}
+export interface LeaguesApiResponse extends BaseResponse<League[]> {}
 
 export interface Player {
     id?: number;
@@ -258,154 +247,107 @@ export interface PlayerWithStats {
     statistics?: PlayerStatistics[];
 }
 
-export interface PlayersApiResponse {
-    get?: string;
-    parameters?: object;
-    errors?: any[];
-    results?: number;
-    paging?: {
-        current?: number;
-        total?: number;
-    };
-    response?: PlayerWithStats[];
-}
+export interface PlayersApiResponse extends BaseResponse<PlayerWithStats[]> {}
 
-export interface FixturesPlayersApiResponse {
-    get?: string;
-    parameters?: object;
-    errors?: any[];
-    results?: number;
-    paging?: {
-        current?: number;
-        total?: number;
-    };
-    response?: {
-        team?: {
-            id?: number;
-            name?: string;
-            /** @format url */
-            logo?: string;
-            /** @format date-time */
-            update?: string;
-        };
-        players?: {
-            player?: Player;
-            statistics?: PlayerStatistics[];
-        }[];
-    }[];
-}
-
-export interface FixturesApiResponse {
-    get?: string;
-    parameters?: object;
-    errors?: any[];
-    results?: number;
-    paging?: {
-        current?: number;
-        total?: number;
-    };
-    response?: {
-        fixture?: {
-            id?: number;
-            referee?: string | null;
-            timezone?: string;
-            /** @format date-time */
-            date?: string;
-            timestamp?: number;
-            periods?: {
-                first?: number | null;
-                second?: number | null;
-            };
-            venue?: {
+export interface FixturesPlayersApiResponse
+    extends BaseResponse<
+        {
+            team?: {
                 id?: number;
                 name?: string;
-                city?: string;
-            };
-            status?: {
-                long?: string;
-                short?: string;
-                elapsed?: number | null;
-                extra?: string | null;
-            };
-        };
-        league?: LeagueStats;
-        teams?: {
-            home?: TeamStats;
-            away?: TeamStats;
-        };
-        goals?: {
-            home?: number | null;
-            away?: number | null;
-        };
-        score?: {
-            halftime?: {
-                home?: number | null;
-                away?: number | null;
-            };
-            fulltime?: {
-                home?: number | null;
-                away?: number | null;
-            };
-            extratime?: {
-                home?: number | null;
-                away?: number | null;
-            };
-            penalty?: {
-                home?: number | null;
-                away?: number | null;
-            };
-        };
-    }[];
-}
-
-export interface StandingsApiResponse {
-    get?: string;
-    parameters?: object;
-    errors?: any[];
-    results?: number;
-    paging?: {
-        current?: number;
-        total?: number;
-    };
-    response?: {
-        league?: {
-            id?: number;
-            name?: string;
-            country?: string;
-            /** @format url */
-            logo?: string;
-            /** @format url */
-            flag?: string;
-            season?: number;
-            standings?: {
-                rank?: number;
-                team?: TeamStats;
-                points?: number;
-                goalsDiff?: number;
-                group?: string;
-                form?: string;
-                status?: string;
-                description?: string;
-                all?: object;
-                home?: object;
-                away?: object;
+                /** @format url */
+                logo?: string;
                 /** @format date-time */
                 update?: string;
-            }[][];
-        };
-    }[];
-}
+            };
+            players?: {
+                player?: Player;
+                statistics?: PlayerStatistics[];
+            }[];
+        }[]
+    > {}
 
-export interface TeamStatisticsApiResponse {
-    get?: string;
-    parameters?: object;
-    errors?: any[];
-    results?: number;
-    paging?: {
-        current?: number;
-        total?: number;
-    };
-    response?: {
+export interface FixturesApiResponse
+    extends BaseResponse<
+        {
+            fixture?: {
+                id?: number;
+                referee?: string | null;
+                timezone?: string;
+                /** @format date-time */
+                date?: string;
+                timestamp?: number;
+                periods?: {
+                    first?: number | null;
+                    second?: number | null;
+                };
+                venue?: {
+                    id?: number;
+                    name?: string;
+                    city?: string;
+                };
+                status?: {
+                    long?: string;
+                    short?: string;
+                    elapsed?: number | null;
+                    extra?: string | null;
+                };
+            };
+            league?: LeagueStats;
+            teams?: {
+                home?: TeamStats;
+                away?: TeamStats;
+            };
+            goals?: {
+                home?: number | null;
+                away?: number | null;
+            };
+            score?: {
+                halftime?: {
+                    home?: number | null;
+                    away?: number | null;
+                };
+                fulltime?: {
+                    home?: number | null;
+                    away?: number | null;
+                };
+                extratime?: {
+                    home?: number | null;
+                    away?: number | null;
+                };
+                penalty?: {
+                    home?: number | null;
+                    away?: number | null;
+                };
+            };
+        }[]
+    > {}
+
+export interface StandingsApiResponse
+    extends BaseResponse<
+        {
+            league?: LeagueStats & {
+                standings?: {
+                    rank?: number;
+                    team?: TeamStats;
+                    points?: number;
+                    goalsDiff?: number;
+                    group?: string;
+                    form?: string;
+                    status?: string;
+                    description?: string;
+                    all?: object;
+                    home?: object;
+                    away?: object;
+                    /** @format date-time */
+                    update?: string;
+                }[][];
+            };
+        }[]
+    > {}
+
+export interface TeamStatisticsApiResponse
+    extends BaseResponse<{
         league?: LeagueStats;
         team?: TeamStats;
         form?: string;
@@ -420,86 +362,64 @@ export interface TeamStatisticsApiResponse {
             played?: number;
         }[];
         cards?: object;
-    };
-}
+    }> {}
 
-export interface TeamsApiResponse {
-    get?: string;
-    parameters?: object;
-    errors?: any[];
-    results?: number;
-    paging?: {
-        current?: number;
-        total?: number;
-    };
-    response?: {
-        team?: {
-            id?: number;
-            name?: string;
-            code?: string;
-            country?: string;
-            founded?: number;
-            national?: boolean;
-            /** @format url */
-            logo?: string;
-        };
-        venue?: {
-            id?: number;
-            name?: string;
-            address?: string;
-            city?: string;
-            capacity?: number;
-            surface?: string;
-            /** @format url */
-            image?: string;
-        };
-    }[];
-}
-
-export interface TransfersApiResponse {
-    get?: string;
-    parameters?: object;
-    errors?: any[];
-    results?: number;
-    paging?: {
-        current?: number;
-        total?: number;
-    };
-    response?: {
-        player?: {
-            id?: number;
-            name?: string;
-        };
-        /** @format date-time */
-        update?: string;
-        transfers?: {
-            /** @format date */
-            date?: string;
-            type?: string | null;
-            teams?: {
-                in?: TeamInfo;
-                out?: TeamInfo;
+export interface TeamsApiResponse
+    extends BaseResponse<
+        {
+            team?: {
+                id?: number;
+                name?: string;
+                code?: string;
+                country?: string;
+                founded?: number;
+                national?: boolean;
+                /** @format url */
+                logo?: string;
             };
-        }[];
-    }[];
-}
+            venue?: {
+                id?: number;
+                name?: string;
+                address?: string;
+                city?: string;
+                capacity?: number;
+                surface?: string;
+                /** @format url */
+                image?: string;
+            };
+        }[]
+    > {}
 
-export interface TrophiesApiResponse {
-    get?: string;
-    parameters?: object;
-    errors?: any[];
-    results?: number;
-    paging?: {
-        current?: number;
-        total?: number;
-    };
-    response?: {
-        league?: string;
-        country?: string;
-        season?: string;
-        place?: string;
-    }[];
-}
+export interface TransfersApiResponse
+    extends BaseResponse<
+        {
+            player?: {
+                id?: number;
+                name?: string;
+            };
+            /** @format date-time */
+            update?: string;
+            transfers?: {
+                /** @format date */
+                date?: string;
+                type?: string | null;
+                teams?: {
+                    in?: TeamInfo;
+                    out?: TeamInfo;
+                };
+            }[];
+        }[]
+    > {}
+
+export interface TrophiesApiResponse
+    extends BaseResponse<
+        {
+            league?: string;
+            country?: string;
+            season?: string;
+            place?: string;
+        }[]
+    > {}
 
 export type TimezoneResponse = ApiResponse;
 
@@ -511,320 +431,302 @@ export type LeaguesSeasonsResponse = ApiResponse;
 
 export type TeamsResponse = TeamsApiResponse;
 
-export interface TeamsStatisticsResponse {
-    /** @example "teams/statistics" */
-    get?: string;
-    parameters?: {
-        /** @example "39" */
-        league?: string;
-        /** @example "2019" */
-        season?: string;
-        /** @example "33" */
-        team?: string;
-    };
-    errors?: string[];
-    results?: number;
-    paging?: {
-        current?: number;
-        total?: number;
-    };
-    response?: {
-        league?: {
-            id?: number;
-            name?: string;
-            country?: string;
-            logo?: string;
-            flag?: string;
-            season?: number;
-        };
-        team?: {
-            id?: number;
-            name?: string;
-            logo?: string;
-        };
-        form?: string;
-        fixtures?: {
-            played?: {
-                home?: number;
-                away?: number;
-                total?: number;
-            };
-            wins?: {
-                home?: number;
-                away?: number;
-                total?: number;
-            };
-            draws?: {
-                home?: number;
-                away?: number;
-                total?: number;
-            };
-            loses?: {
-                home?: number;
-                away?: number;
-                total?: number;
-            };
-        };
-        goals?: {
-            for?: {
-                total?: {
+export interface TeamsStatisticsResponse
+    extends BaseResponse<
+        {
+            league?: LeagueStats;
+            team?: TeamStats;
+            form?: string;
+            fixtures?: {
+                played?: {
                     home?: number;
                     away?: number;
                     total?: number;
                 };
-                average?: {
-                    home?: string;
-                    away?: string;
-                    total?: string;
-                };
-                minute?: {
-                    '0-15'?: {
-                        total?: number | null;
-                        percentage?: string | null;
-                    };
-                    '16-30'?: {
-                        total?: number | null;
-                        percentage?: string | null;
-                    };
-                    '31-45'?: {
-                        total?: number | null;
-                        percentage?: string | null;
-                    };
-                    '46-60'?: {
-                        total?: number | null;
-                        percentage?: string | null;
-                    };
-                    '61-75'?: {
-                        total?: number | null;
-                        percentage?: string | null;
-                    };
-                    '76-90'?: {
-                        total?: number | null;
-                        percentage?: string | null;
-                    };
-                    '91-105'?: {
-                        total?: number | null;
-                        percentage?: string | null;
-                    };
-                    '106-120'?: {
-                        total?: number | null;
-                        percentage?: string | null;
-                    };
-                };
-                under_over?: {
-                    '0.5'?: {
-                        over?: number;
-                        under?: number;
-                    };
-                    '1.5'?: {
-                        over?: number;
-                        under?: number;
-                    };
-                    '2.5'?: {
-                        over?: number;
-                        under?: number;
-                    };
-                    '3.5'?: {
-                        over?: number;
-                        under?: number;
-                    };
-                    '4.5'?: {
-                        over?: number;
-                        under?: number;
-                    };
-                };
-            };
-            against?: {
-                total?: {
+                wins?: {
                     home?: number;
                     away?: number;
                     total?: number;
                 };
-                average?: {
-                    home?: string;
-                    away?: string;
-                    total?: string;
+                draws?: {
+                    home?: number;
+                    away?: number;
+                    total?: number;
                 };
-                minute?: {
-                    '0-15'?: {
-                        total?: number | null;
-                        percentage?: string | null;
-                    };
-                    '16-30'?: {
-                        total?: number | null;
-                        percentage?: string | null;
-                    };
-                    '31-45'?: {
-                        total?: number | null;
-                        percentage?: string | null;
-                    };
-                    '46-60'?: {
-                        total?: number | null;
-                        percentage?: string | null;
-                    };
-                    '61-75'?: {
-                        total?: number | null;
-                        percentage?: string | null;
-                    };
-                    '76-90'?: {
-                        total?: number | null;
-                        percentage?: string | null;
-                    };
-                    '91-105'?: {
-                        total?: number | null;
-                        percentage?: string | null;
-                    };
-                    '106-120'?: {
-                        total?: number | null;
-                        percentage?: string | null;
-                    };
+                loses?: {
+                    home?: number;
+                    away?: number;
+                    total?: number;
                 };
-                under_over?: {
-                    '0.5'?: {
-                        over?: number;
-                        under?: number;
-                    };
-                    '1.5'?: {
-                        over?: number;
-                        under?: number;
-                    };
-                    '2.5'?: {
-                        over?: number;
-                        under?: number;
-                    };
-                    '3.5'?: {
-                        over?: number;
-                        under?: number;
-                    };
-                    '4.5'?: {
-                        over?: number;
-                        under?: number;
-                    };
-                };
-            };
-        };
-        biggest?: {
-            streak?: {
-                wins?: number;
-                draws?: number;
-                loses?: number;
-            };
-            wins?: {
-                home?: string;
-                away?: string;
-            };
-            loses?: {
-                home?: string;
-                away?: string;
             };
             goals?: {
                 for?: {
-                    home?: number;
-                    away?: number;
+                    total?: {
+                        home?: number;
+                        away?: number;
+                        total?: number;
+                    };
+                    average?: {
+                        home?: string;
+                        away?: string;
+                        total?: string;
+                    };
+                    minute?: {
+                        '0-15'?: {
+                            total?: number | null;
+                            percentage?: string | null;
+                        };
+                        '16-30'?: {
+                            total?: number | null;
+                            percentage?: string | null;
+                        };
+                        '31-45'?: {
+                            total?: number | null;
+                            percentage?: string | null;
+                        };
+                        '46-60'?: {
+                            total?: number | null;
+                            percentage?: string | null;
+                        };
+                        '61-75'?: {
+                            total?: number | null;
+                            percentage?: string | null;
+                        };
+                        '76-90'?: {
+                            total?: number | null;
+                            percentage?: string | null;
+                        };
+                        '91-105'?: {
+                            total?: number | null;
+                            percentage?: string | null;
+                        };
+                        '106-120'?: {
+                            total?: number | null;
+                            percentage?: string | null;
+                        };
+                    };
+                    under_over?: {
+                        '0.5'?: {
+                            over?: number;
+                            under?: number;
+                        };
+                        '1.5'?: {
+                            over?: number;
+                            under?: number;
+                        };
+                        '2.5'?: {
+                            over?: number;
+                            under?: number;
+                        };
+                        '3.5'?: {
+                            over?: number;
+                            under?: number;
+                        };
+                        '4.5'?: {
+                            over?: number;
+                            under?: number;
+                        };
+                    };
                 };
                 against?: {
-                    home?: number;
-                    away?: number;
+                    total?: {
+                        home?: number;
+                        away?: number;
+                        total?: number;
+                    };
+                    average?: {
+                        home?: string;
+                        away?: string;
+                        total?: string;
+                    };
+                    minute?: {
+                        '0-15'?: {
+                            total?: number | null;
+                            percentage?: string | null;
+                        };
+                        '16-30'?: {
+                            total?: number | null;
+                            percentage?: string | null;
+                        };
+                        '31-45'?: {
+                            total?: number | null;
+                            percentage?: string | null;
+                        };
+                        '46-60'?: {
+                            total?: number | null;
+                            percentage?: string | null;
+                        };
+                        '61-75'?: {
+                            total?: number | null;
+                            percentage?: string | null;
+                        };
+                        '76-90'?: {
+                            total?: number | null;
+                            percentage?: string | null;
+                        };
+                        '91-105'?: {
+                            total?: number | null;
+                            percentage?: string | null;
+                        };
+                        '106-120'?: {
+                            total?: number | null;
+                            percentage?: string | null;
+                        };
+                    };
+                    under_over?: {
+                        '0.5'?: {
+                            over?: number;
+                            under?: number;
+                        };
+                        '1.5'?: {
+                            over?: number;
+                            under?: number;
+                        };
+                        '2.5'?: {
+                            over?: number;
+                            under?: number;
+                        };
+                        '3.5'?: {
+                            over?: number;
+                            under?: number;
+                        };
+                        '4.5'?: {
+                            over?: number;
+                            under?: number;
+                        };
+                    };
                 };
             };
-        };
-        clean_sheet?: {
-            home?: number;
-            away?: number;
-            total?: number;
-        };
-        failed_to_score?: {
-            home?: number;
-            away?: number;
-            total?: number;
-        };
-        penalty?: {
-            scored?: {
+            biggest?: {
+                streak?: {
+                    wins?: number;
+                    draws?: number;
+                    loses?: number;
+                };
+                wins?: {
+                    home?: string;
+                    away?: string;
+                };
+                loses?: {
+                    home?: string;
+                    away?: string;
+                };
+                goals?: {
+                    for?: {
+                        home?: number;
+                        away?: number;
+                    };
+                    against?: {
+                        home?: number;
+                        away?: number;
+                    };
+                };
+            };
+            clean_sheet?: {
+                home?: number;
+                away?: number;
                 total?: number;
-                percentage?: string;
             };
-            missed?: {
+            failed_to_score?: {
+                home?: number;
+                away?: number;
                 total?: number;
-                percentage?: string;
             };
-            total?: number;
-        };
-        lineups?: {
-            formation?: string;
-            played?: number;
-        }[];
-        cards?: {
-            yellow?: {
-                '0-15'?: {
-                    total?: number | null;
-                    percentage?: string | null;
+            penalty?: {
+                scored?: {
+                    total?: number;
+                    percentage?: string;
                 };
-                '16-30'?: {
-                    total?: number | null;
-                    percentage?: string | null;
+                missed?: {
+                    total?: number;
+                    percentage?: string;
                 };
-                '31-45'?: {
-                    total?: number | null;
-                    percentage?: string | null;
+                total?: number;
+            };
+            lineups?: {
+                formation?: string;
+                played?: number;
+            }[];
+            cards?: {
+                yellow?: {
+                    '0-15'?: {
+                        total?: number | null;
+                        percentage?: string | null;
+                    };
+                    '16-30'?: {
+                        total?: number | null;
+                        percentage?: string | null;
+                    };
+                    '31-45'?: {
+                        total?: number | null;
+                        percentage?: string | null;
+                    };
+                    '46-60'?: {
+                        total?: number | null;
+                        percentage?: string | null;
+                    };
+                    '61-75'?: {
+                        total?: number | null;
+                        percentage?: string | null;
+                    };
+                    '76-90'?: {
+                        total?: number | null;
+                        percentage?: string | null;
+                    };
+                    '91-105'?: {
+                        total?: number | null;
+                        percentage?: string | null;
+                    };
+                    '106-120'?: {
+                        total?: number | null;
+                        percentage?: string | null;
+                    };
                 };
-                '46-60'?: {
-                    total?: number | null;
-                    percentage?: string | null;
-                };
-                '61-75'?: {
-                    total?: number | null;
-                    percentage?: string | null;
-                };
-                '76-90'?: {
-                    total?: number | null;
-                    percentage?: string | null;
-                };
-                '91-105'?: {
-                    total?: number | null;
-                    percentage?: string | null;
-                };
-                '106-120'?: {
-                    total?: number | null;
-                    percentage?: string | null;
+                red?: {
+                    '0-15'?: {
+                        total?: number | null;
+                        percentage?: string | null;
+                    };
+                    '16-30'?: {
+                        total?: number | null;
+                        percentage?: string | null;
+                    };
+                    '31-45'?: {
+                        total?: number | null;
+                        percentage?: string | null;
+                    };
+                    '46-60'?: {
+                        total?: number | null;
+                        percentage?: string | null;
+                    };
+                    '61-75'?: {
+                        total?: number | null;
+                        percentage?: string | null;
+                    };
+                    '76-90'?: {
+                        total?: number | null;
+                        percentage?: string | null;
+                    };
+                    '91-105'?: {
+                        total?: number | null;
+                        percentage?: string | null;
+                    };
+                    '106-120'?: {
+                        total?: number | null;
+                        percentage?: string | null;
+                    };
                 };
             };
-            red?: {
-                '0-15'?: {
-                    total?: number | null;
-                    percentage?: string | null;
-                };
-                '16-30'?: {
-                    total?: number | null;
-                    percentage?: string | null;
-                };
-                '31-45'?: {
-                    total?: number | null;
-                    percentage?: string | null;
-                };
-                '46-60'?: {
-                    total?: number | null;
-                    percentage?: string | null;
-                };
-                '61-75'?: {
-                    total?: number | null;
-                    percentage?: string | null;
-                };
-                '76-90'?: {
-                    total?: number | null;
-                    percentage?: string | null;
-                };
-                '91-105'?: {
-                    total?: number | null;
-                    percentage?: string | null;
-                };
-                '106-120'?: {
-                    total?: number | null;
-                    percentage?: string | null;
-                };
-            };
-        };
-    };
-}
+        },
+        {
+            /** @example "39" */
+            league?: string;
+            /** @example "2019" */
+            season?: string;
+            /** @example "33" */
+            team?: string;
+        }
+    > {}
 
 export type TeamsSeasonsResponse = ApiResponse;
 
@@ -856,116 +758,35 @@ export type CoachsResponse = ApiResponse;
 
 export type PlayersSeasonsResponse = ApiResponse;
 
-export interface PlayersResponse {
-    /** @example "players" */
-    get?: string;
-    parameters?: {
-        /** @example "276" */
-        id?: string;
-        /** @example "2019" */
-        season?: string;
-    };
-    errors?: string[];
-    results?: number;
-    paging?: {
-        current?: number;
-        total?: number;
-    };
-    response?: {
-        player?: {
-            id?: number;
-            name?: string;
-            firstname?: string;
-            lastname?: string;
-            age?: number;
-            birth?: {
-                /** @format date */
-                date?: string;
-                place?: string;
-                country?: string;
-            };
-            nationality?: string;
-            height?: string;
-            weight?: string;
-            injured?: boolean;
-            photo?: string;
-        };
-        statistics?: {
-            team?: {
-                id?: number;
-                name?: string;
-                logo?: string;
-            };
-            league?: {
-                id?: number;
-                name?: string;
-                country?: string;
-                logo?: string;
-                flag?: string;
-                season?: number;
-            };
-            games?: {
-                appearences?: number;
-                lineups?: number;
-                minutes?: number;
-                number?: number | null;
-                position?: string;
-                rating?: string;
-                captain?: boolean;
-            };
-            substitutes?: {
-                in?: number;
-                out?: number;
-                bench?: number;
-            };
-            shots?: {
-                total?: number;
-                on?: number;
-            };
-            goals?: {
-                total?: number;
-                conceded?: number | null;
-                assists?: number;
-                saves?: number;
-            };
-            passes?: {
-                total?: number;
-                key?: number;
-                accuracy?: number;
-            };
-            tackles?: {
-                total?: number;
-                blocks?: number;
-                interceptions?: number;
-            };
-            duels?: {
-                total?: number | null;
-                won?: number | null;
-            };
-            dribbles?: {
-                attempts?: number;
-                success?: number;
-                past?: number | null;
-            };
-            fouls?: {
-                drawn?: number;
-                committed?: number;
-            };
-            cards?: {
-                yellow?: number;
-                yellowred?: number;
-                red?: number;
-            };
-            penalty?: {
-                won?: number;
-                commited?: number | null;
-                scored?: number;
-                missed?: number;
-                saved?: number | null;
-            };
-        }[];
+export interface SinglePlayersResponse {
+    player?: Player;
+    statistics?: {
+        team?: TeamStats;
+        league?: LeagueStats;
+        games?: GamesStats;
+        substitutes?: SubstitutesStats;
+        shots?: ShotsStats;
+        goals?: GoalsStats;
+        passes?: PassesStats;
+        tackles?: TacklesStats;
+        duels?: DuelsStats;
+        dribbles?: DribblesStats;
+        fouls?: FoulsStats;
+        cards?: CardsStats;
+        penalty?: PenaltyStats;
     }[];
 }
+
+export interface PlayersResponseFull
+    extends BaseResponse<
+        SinglePlayersResponse[],
+        {
+            /** @example "276" */
+            id?: string;
+            /** @example "2019" */
+            season?: string;
+        }
+    > {}
 
 export type PlayersSquadsResponse = SquadsResponse;
 
@@ -991,61 +812,40 @@ export type OddsBookmakersResponse = ApiResponse;
 
 export type OddsBetsResponse = ApiResponse;
 
-export interface PlayersProfilesResponse {
-    /** @example "players/profiles" */
-    get?: string;
-    parameters?: {
-        /** @example "276" */
-        player?: string;
-    };
-    errors?: string[];
-    results?: number;
-    paging?: {
-        current?: number;
-        total?: number;
-    };
-    response?: {
-        player?: {
-            id?: number;
-            name?: string;
-            firstname?: string;
-            lastname?: string;
-            age?: number;
-            birth?: {
-                /** @format date */
-                date?: string;
-                place?: string;
-                country?: string;
+export interface PlayersProfilesResponse
+    extends BaseResponse<
+        {
+            player?: Player & {
+                number?: number | null;
+                position?: 'Goalkeeper' | 'Defender' | 'Midfielder' | 'Attacker';
             };
-            nationality?: string;
-            height?: string;
-            weight?: string;
-            number?: number | null;
-            position?: 'Goalkeeper' | 'Defender' | 'Midfielder' | 'Attacker';
-            photo?: string;
-        };
-    }[];
-}
+        }[],
+        {
+            /** @example "276" */
+            player?: string;
+        }
+    > {}
 
-export type SquadsResponse = {
-    response?: {
-        team: {
-            id: number;
-            name: string;
-            /** @format uri */
-            logo: string;
-        };
-        players: {
-            id: number;
-            name: string;
-            age: number;
-            number?: number | null;
-            position: string;
-            /** @format uri */
-            photo: string;
-        }[];
-    }[];
-};
+export interface SquadsResponse
+    extends BaseResponse<
+        {
+            team: {
+                id: number;
+                name: string;
+                /** @format uri */
+                logo: string;
+            };
+            players: {
+                id: number;
+                name: string;
+                age: number;
+                number?: number | null;
+                position: string;
+                /** @format uri */
+                photo: string;
+            }[];
+        }[]
+    > {}
 
 export type TimezoneListData = TimezoneResponse;
 
@@ -1238,7 +1038,7 @@ export interface PlayersListParams2 {
     page?: number;
 }
 
-export type PlayersListResult = PlayersResponse;
+export type PlayersListResult = PlayersResponseFull;
 
 export interface SquadsListParams {
     /** Team ID */
@@ -1339,9 +1139,6 @@ export interface ProfilesListParams {
 
 export type ProfilesListData = PlayersProfilesResponse;
 
-import type { AxiosInstance, AxiosRequestConfig, HeadersDefaults, ResponseType } from 'axios';
-import axios from 'axios';
-
 export type QueryParamsType = Record<string | number, any>;
 
 export interface FullRequestParams extends Omit<AxiosRequestConfig, 'data' | 'params' | 'url' | 'responseType'> {
@@ -1438,7 +1235,7 @@ export class HttpClient<SecurityDataType = unknown> {
         }, new FormData());
     }
 
-    public request = async <T = any, _E = any>({
+    async request<T extends BaseResponse = BaseResponse, _E = any>({
         secure,
         path,
         type,
@@ -1446,7 +1243,7 @@ export class HttpClient<SecurityDataType = unknown> {
         format,
         body,
         ...params
-    }: FullRequestParams): Promise<T> => {
+    }: FullRequestParams): Promise<T> {
         const secureParams =
             ((typeof secure === 'boolean' ? secure : this.secure) &&
                 this.securityWorker &&
@@ -1464,7 +1261,7 @@ export class HttpClient<SecurityDataType = unknown> {
         }
 
         return this.instance
-            .request({
+            .request<T>({
                 ...requestParams,
                 headers: {
                     ...(requestParams.headers || {}),
@@ -1476,7 +1273,7 @@ export class HttpClient<SecurityDataType = unknown> {
                 url: path,
             })
             .then((response) => response.data);
-    };
+    }
 }
 
 /**
@@ -1488,6 +1285,51 @@ export class HttpClient<SecurityDataType = unknown> {
  * API to access all API endpoints, which can get information about Football Leagues & Cups.
  */
 export class FootballApi<SecurityDataType extends unknown = unknown> extends HttpClient<SecurityDataType> {
+    constructor(
+        apiConfig: ApiConfig,
+        private logger: BaseLogger,
+    ) {
+        super(apiConfig);
+    }
+
+    override request = async <T extends BaseResponse = BaseResponse, _E = any>({
+        secure,
+        ...params
+    }: FullRequestParams): Promise<T> => {
+        this.logger.info(`FootballAPI Request: ${params.method} ${params.path}`);
+        try {
+            const response = await super.request<T>({ secure, ...params });
+            this.logger.info(`FootballAPI Response: ${params.method} ${params.path} - Success`, { response });
+
+            if (this.isErrorResponse(response)) {
+                this.logger.error(`FootballAPI Error Response: ${params.method} ${params.path}`, {
+                    errors: response.errors,
+                    response,
+                    params,
+                });
+            }
+
+            return response;
+        } catch (error) {
+            this.logger.error(
+                `FootballAPI Request General Error: ${params.method} ${params.path} - Error: ${(error as any).message}`,
+                {
+                    error,
+                    params,
+                },
+            );
+            throw error;
+        }
+    };
+
+    isErrorResponse = (response: ApiResponse) => {
+        const isArrayError = response.errors && 'length' in response.errors && response.errors.length > 0;
+        const isObjectError =
+            response.errors && !('length' in response.errors) && Object.keys(response.errors).length > 0;
+
+        return isArrayError || isObjectError;
+    };
+
     timezone = {
         /**
          * @description Get the list of available timezones.
@@ -1591,11 +1433,10 @@ export class FootballApi<SecurityDataType extends unknown = unknown> extends Htt
             }),
 
         /**
-         * @description Get statistics for a team in a league for a season.
+         * No description
          *
-         * @tags Teams
          * @name StatisticsList
-         * @summary Get Team Statistics
+         * @summary Get detailed team statistics
          * @request GET:/teams/statistics
          * @secure
          * @response `200` `StatisticsListData` Successful response
@@ -1916,11 +1757,10 @@ export class FootballApi<SecurityDataType extends unknown = unknown> extends Htt
             }),
 
         /**
-         * @description Get players from a team, league, or search.
+         * No description
          *
-         * @tags Players
          * @name PlayersList
-         * @summary Get Players
+         * @summary Get player statistics by player ID and season
          * @request GET:/players
          * @secure
          * @response `200` `PlayersListResult` Successful response
@@ -1936,10 +1776,11 @@ export class FootballApi<SecurityDataType extends unknown = unknown> extends Htt
             }),
 
         /**
-         * No description
+         * @description Get the squad for a team.
          *
+         * @tags Players
          * @name SquadsList
-         * @summary Get squad players by team
+         * @summary Get Squads
          * @request GET:/players/squads
          * @secure
          * @response `200` `SquadsListData` OK
@@ -2027,25 +1868,6 @@ export class FootballApi<SecurityDataType extends unknown = unknown> extends Htt
         topredcardsList: (query: TopredcardsListParams, params: RequestParams = {}) =>
             this.request<TopredcardsListData, any>({
                 path: `/players/topredcards`,
-                method: 'GET',
-                query: query,
-                secure: true,
-                format: 'json',
-                ...params,
-            }),
-
-        /**
-         * No description
-         *
-         * @name ProfilesList
-         * @summary Get player profile by player ID
-         * @request GET:/players/profiles
-         * @secure
-         * @response `200` `ProfilesListData` Successful response
-         */
-        profilesList: (query: ProfilesListParams, params: RequestParams = {}) =>
-            this.request<ProfilesListData, any>({
-                path: `/players/profiles`,
                 method: 'GET',
                 query: query,
                 secure: true,

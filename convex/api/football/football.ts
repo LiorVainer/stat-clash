@@ -1,18 +1,28 @@
 'use node';
 
-import qs from 'qs';
 import { FootballApi, LeaguesListParams, PlayerStatistics, StatisticsListData } from './client';
 import { IngestionLogger } from '../../logs/ingestion';
 import { ConvexHttpClient } from 'convex/browser';
 import { api } from '../../_generated/api';
 import { Timer } from '../../logs/timer';
 import Bluebird from 'bluebird';
+import Bottleneck from 'bottleneck';
 
 const API_CONFIG = {
     BASE_URL: 'https://v3.football.api-sports.io',
     PROVIDER_NAME: 'api-football',
     DAILY_LIMIT: 7000, // Free tier limit
     LIMIT_WARNING_THRESHOLD: 0.9, // Warn at 90% of daily limit
+    // Bottleneck rate limiting configuration
+    RATE_LIMIT: {
+        // 280 requests per minute (buffer under 300 limit)
+        maxConcurrent: 5, // Max concurrent requests
+        minTime: 0, // Minimum time between requests (ms) - 250ms = ~240 req/min max
+        reservoir: 280, // Initial number of requests available
+        reservoirRefreshAmount: 300 / 60, // add 5 tokens each interval
+        reservoirRefreshInterval: 1000, // every 1 second
+        reservoirIncreaseMaximum: 280,
+    },
     CONCURRENCY: {
         LEAGUES: 3, // Concurrent league API calls
         PLAYERS: 5, // Concurrent player detail API calls
@@ -41,34 +51,73 @@ const RESOURCES = {
     TEAM_STATS: 'team-stats',
 } as const;
 
-export const footballApiClient = new FootballApi({
-    headers: {
-        'x-apisports-key': process.env.SOCCER_API_KEY,
-    },
-});
-
-footballApiClient.instance.interceptors.request.use((config) => {
-    const baseURL = config.baseURL || '';
-    const url = config.url || '';
-    const query = config.params ? `?${qs.stringify(config.params, { arrayFormat: 'repeat' })}` : '';
-    console.log(`Making request to: ${baseURL}${url}${query}`);
-    return config;
-});
-
 export class FootballService {
     private apiClient: FootballApi;
     private convexClient: ConvexHttpClient;
 
+    // NEW: Bottleneck rate limiter for API calls
+    private rateLimiter: Bottleneck;
+
     constructor(private logger: IngestionLogger) {
-        this.apiClient = new FootballApi({
-            baseURL: API_CONFIG.BASE_URL,
-            headers: {
-                'x-apisports-key': process.env.FOOTBALL_API_KEY,
+        this.apiClient = new FootballApi(
+            {
+                baseURL: API_CONFIG.BASE_URL,
+                headers: {
+                    'x-apisports-key': process.env.FOOTBALL_API_KEY,
+                },
             },
-        });
+            logger,
+        );
 
         // Initialize Convex client for database operations
         this.convexClient = new ConvexHttpClient(process.env.CONVEX_CLOUD_URL!);
+
+        // Initialize Bottleneck rate limiter
+        this.rateLimiter = new Bottleneck(API_CONFIG.RATE_LIMIT);
+
+        // Add event listeners for monitoring
+        this.rateLimiter.on('failed', async (error, jobInfo) => {
+            this.logger.error('Rate limiter job failed', {
+                error: error.message,
+                retryCount: jobInfo.retryCount,
+                options: jobInfo.options,
+            });
+        });
+
+        this.rateLimiter.on('retry', async (error, jobInfo) => {
+            this.logger.warn('Rate limiter retrying job', {
+                error,
+                jobInfo,
+            });
+        });
+
+        this.rateLimiter.on('depleted', async (empty) => {
+            this.logger.warn('Rate limiter reservoir depleted', { empty });
+        });
+
+        this.rateLimiter.on('debug', async (message, data) => {
+            this.logger.info('Rate limiter debug', { message, data });
+        });
+    }
+
+    // NEW: Get current rate limiter status
+    public getRateLimiterStatus(): {
+        queued: number;
+        running: number;
+        executing: number;
+        done?: number;
+        counts: Bottleneck.Counts;
+        isEmpty: boolean;
+    } {
+        const counts = this.rateLimiter.counts();
+        return {
+            queued: counts.QUEUED,
+            running: counts.RUNNING,
+            executing: counts.EXECUTING,
+            done: counts.DONE,
+            counts,
+            isEmpty: this.rateLimiter.empty(),
+        };
     }
 
     // Get current API usage from database
@@ -79,7 +128,7 @@ export class FootballService {
                 date,
             });
         } catch (error) {
-            await this.logger.warn('Failed to get API usage from database', { error: (error as Error).message });
+            this.logger.warn('Failed to get API usage from database', { error: (error as Error).message });
             return {
                 totalCalls: 0,
                 date: date || new Date().toISOString().split('T')[0],
@@ -106,7 +155,7 @@ export class FootballService {
                 error,
             });
         } catch (dbError) {
-            await this.logger.error('Failed to log API call to database', {
+            this.logger.error('Failed to log API call to database', {
                 error: (dbError as Error).message,
                 resource,
                 statusCode,
@@ -118,7 +167,7 @@ export class FootballService {
     private async checkApiLimits(): Promise<void> {
         const currentUsage = await this.getCurrentApiUsage();
         if (currentUsage.totalCalls >= API_CONFIG.DAILY_LIMIT * API_CONFIG.LIMIT_WARNING_THRESHOLD) {
-            await this.logger.warn('Approaching API limit', {
+            this.logger.warn('Approaching API limit', {
                 currentCalls: currentUsage.totalCalls,
                 limit: API_CONFIG.DAILY_LIMIT,
                 percentUsed: Math.round((currentUsage.totalCalls / API_CONFIG.DAILY_LIMIT) * 100),
@@ -132,7 +181,7 @@ export class FootballService {
         }
     }
 
-    // Enhanced retry with centralized error handling, logging, and API limit checking
+    // Enhanced retry with centralized error handling, logging, and Bottleneck rate limiting
     private async withRetry<T>(
         operation: () => Promise<T>,
         resource: string,
@@ -140,84 +189,76 @@ export class FootballService {
         maxAttempts = RETRY_CONFIG.MAX_ATTEMPTS,
         baseDelay = RETRY_CONFIG.BASE_DELAY_MS,
     ): Promise<T> {
-        let lastError: Error;
-        const timer = new Timer();
-        let statusCode = 0;
-        let error: string | undefined;
-
-        // Check API limits before starting any operation
+        // Check daily API limits before starting any operation
         await this.checkApiLimits();
 
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-            try {
-                const result = await operation();
-                statusCode = HTTP_STATUS.SUCCESS_MIN;
+        return this.rateLimiter.schedule({ priority: 5, weight: 1 }, async () => {
+            let lastError: Error;
+            const timer = new Timer();
+            let statusCode = 0;
+            let error: string | undefined;
 
-                // Log successful API call to both systems
-                await this.logApiCallToDatabase(resource, timer.total(), statusCode, params);
-                await this.logger.logApiCall({
-                    provider: API_CONFIG.PROVIDER_NAME,
-                    resource,
-                    responseTime: timer.total(),
-                    statusCode,
-                    params: params
-                        ? Object.entries(params)
-                              .map(([k, v]) => `${k}=${v}`)
-                              .join('&')
-                        : undefined,
-                });
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                try {
+                    const result = await operation();
+                    statusCode = HTTP_STATUS.SUCCESS_MIN;
 
-                return result;
-            } catch (err: any) {
-                lastError = err;
-                statusCode = err.response?.status || 0;
-                error = err.message || 'Unknown error';
-
-                // Log failed API call to both systems
-                await this.logApiCallToDatabase(resource, timer.total(), statusCode, params, error);
-                await this.logger.logApiCall({
-                    provider: API_CONFIG.PROVIDER_NAME,
-                    resource,
-                    responseTime: timer.total(),
-                    statusCode,
-                    params: params
-                        ? Object.entries(params)
-                              .map(([k, v]) => `${k}=${v}`)
-                              .join('&')
-                        : undefined,
-                    error,
-                });
-
-                // Don't retry on validation errors or 4xx client errors
-                if (error?.includes('validation') || statusCode < RETRY_CONFIG.SERVER_ERROR_THRESHOLD) {
-                    throw err;
-                }
-
-                if (attempt === maxAttempts) {
-                    await this.logger.error(`Max retries exceeded for ${resource}`, {
-                        attempts: maxAttempts,
-                        finalError: error,
+                    // Log successful API call to both systems
+                    await this.logApiCallToDatabase(resource, timer.total(), statusCode, params);
+                    await this.logger.logApiCall({
+                        provider: API_CONFIG.PROVIDER_NAME,
+                        resource,
+                        responseTime: timer.total(),
+                        statusCode,
+                        params: params
+                            ? Object.entries(params)
+                                  .map(([k, v]) => `${k}=${v}`)
+                                  .join('&')
+                            : undefined,
                     });
-                    throw lastError;
+
+                    return result;
+                } catch (err: any) {
+                    lastError = err;
+                    this.logger.error(`Error calling ${resource}`, {
+                        attempt,
+                        maxAttempts,
+                        err,
+                    });
+                    statusCode = err.response?.status || 0;
+                    error = err.message || 'Unknown error';
+
+                    // Don't retry on validation errors or 4xx client errors
+                    if (error?.includes('validation') || statusCode < RETRY_CONFIG.SERVER_ERROR_THRESHOLD) {
+                        throw err;
+                    }
+
+                    if (attempt === maxAttempts) {
+                        this.logger.error(`Max retries exceeded for ${resource}`, {
+                            attempts: maxAttempts,
+                            finalError: error,
+                        });
+                        throw lastError;
+                    }
+
+                    const delay = baseDelay * Math.pow(2, attempt - 1);
+                    this.logger.warn(`Retrying ${resource} after error`, {
+                        attempt,
+                        maxAttempts,
+                        delayMs: delay,
+                        error,
+                    });
+
+                    await new Promise((resolve) => setTimeout(resolve, delay));
                 }
-
-                const delay = baseDelay * Math.pow(2, attempt - 1);
-                await this.logger.warn(`Retrying ${resource} after error`, {
-                    attempt,
-                    maxAttempts,
-                    delayMs: delay,
-                    error,
-                });
-
-                await new Promise((resolve) => setTimeout(resolve, delay));
             }
-        }
 
-        throw lastError!;
+            throw lastError!;
+        });
     }
 
     async getLeagues() {
-        await this.logger.info('Fetching leagues from API-Football');
+        this.logger.info('Fetching leagues from API-Football');
         return this.withRetry(async () => {
             const response = await this.apiClient.leagues.leaguesList({});
             return response.response || [];
@@ -225,7 +266,7 @@ export class FootballService {
     }
 
     async getLeaguesByIds(leagueIds: number[], current: LeaguesListParams['current'] = 'true') {
-        await this.logger.info('Fetching leagues by IDs from API-Football', { leagueIds, count: leagueIds.length });
+        this.logger.info('Fetching leagues by IDs from API-Football', { leagueIds, count: leagueIds.length });
 
         // Make concurrent API calls for each league ID with concurrency control
         const leagueResponses = await Bluebird.map(
@@ -249,13 +290,13 @@ export class FootballService {
         // Flatten the results since each response is an array
         const allLeagues = leagueResponses.flat();
 
-        await this.logger.info(`Successfully fetched ${allLeagues.length} leagues from ${leagueIds.length} API calls`);
+        this.logger.info(`Successfully fetched ${allLeagues.length} leagues from ${leagueIds.length} API calls`);
 
         return allLeagues;
     }
 
     async getTeamsByLeague(leagueId: string, season: string = '2025') {
-        await this.logger.info('Fetching teams', { leagueId, season });
+        this.logger.info('Fetching teams', { leagueId, season });
         const params = { league: leagueId, season };
         return this.withRetry(
             async () => {
@@ -272,13 +313,15 @@ export class FootballService {
     }
 
     async getPlayersByTeam(teamId: string) {
-        await this.logger.info('Fetching players', { teamId });
+        this.logger.info('Fetching players', { teamId });
         const params = { team: teamId };
         return this.withRetry(
             async () => {
                 const response = await this.apiClient.players.squadsList({
                     team: parseInt(teamId),
                 });
+
+                this.logger.info(`Response for squad ${teamId}`, { response });
                 return response.response?.at(0)?.players || [];
             },
             RESOURCES.SQUADS,
@@ -287,7 +330,7 @@ export class FootballService {
     }
 
     async getPlayerStats(playerId: string, season: string = '2025'): Promise<PlayerStatistics | null> {
-        await this.logger.info('Fetching player stats', { playerId, season });
+        this.logger.info('Fetching player stats', { playerId, season });
         const params = { id: playerId, season };
         return this.withRetry(
             async () => {
@@ -295,6 +338,7 @@ export class FootballService {
                     id: parseInt(playerId),
                     season: parseInt(season),
                 });
+
                 return response.response?.at(0)?.statistics?.at(0) ?? null;
             },
             RESOURCES.PLAYER_STATS,
@@ -322,7 +366,7 @@ export class FootballService {
                 endDate,
             });
         } catch (error) {
-            await this.logger.error('Failed to get usage stats', { error: (error as Error).message });
+            this.logger.error('Failed to get usage stats', { error: (error as Error).message });
             throw error;
         }
     }
@@ -336,13 +380,13 @@ export class FootballService {
                 limit,
             });
         } catch (error) {
-            await this.logger.error('Failed to get API call history', { error: (error as Error).message });
+            this.logger.error('Failed to get API call history', { error: (error as Error).message });
             throw error;
         }
     }
 
     async getPlayersByIds(playerIds: number[]) {
-        await this.logger.info('Fetching detailed player data by IDs from API-Football', {
+        this.logger.info('Fetching detailed player data by IDs from API-Football', {
             playerIds,
             count: playerIds.length,
         });
@@ -369,7 +413,7 @@ export class FootballService {
         // Flatten the results since each response is an array
         const allPlayers = playerResponses.flat();
 
-        await this.logger.info(
+        this.logger.info(
             `Successfully fetched ${allPlayers.length} detailed players from ${playerIds.length} API calls`,
         );
 
@@ -381,7 +425,7 @@ export class FootballService {
         leagueId: string,
         season: string = new Date().getFullYear().toString(),
     ): Promise<StatisticsListData['response'] | null> {
-        await this.logger.info('Fetching team stats', { teamId, leagueId, season });
+        this.logger.info('Fetching team stats', { teamId, leagueId, season });
         const params = { team: teamId, league: leagueId, season };
         return this.withRetry(
             async () => {

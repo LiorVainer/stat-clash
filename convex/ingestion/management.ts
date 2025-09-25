@@ -73,7 +73,12 @@ export const getIngestionStatus = query({
 export const triggerFullIngestion = mutation({
     args: {
         season: v.optional(v.string()),
-        includePlayerStats: v.optional(v.boolean()),
+        initializeReferenceData: v.optional(v.boolean()),
+        ingestLeagues: v.optional(v.boolean()),
+        ingestTeams: v.optional(v.boolean()),
+        ingestPlayers: v.optional(v.boolean()),
+        ingestTeamStats: v.optional(v.boolean()),
+        ingestPlayerStats: v.optional(v.boolean()),
     },
     handler: async (
         ctx,
@@ -83,7 +88,7 @@ export const triggerFullIngestion = mutation({
         message: string;
         timestamp: string;
     }> => {
-        // Schedule the ingestion to run as an internal mutation
+        // Schedule the ingestion to run as an internal action with all the flags
         await ctx.scheduler.runAfter(0, internal.ingestion.orchestrator.runFullIngestion, args);
 
         return {

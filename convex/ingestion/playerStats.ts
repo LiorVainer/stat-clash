@@ -24,70 +24,226 @@ export const ingestPlayerStats = internalAction({
         let teams: Array<Doc<'teams'>> = [];
         let resolvedLeague: Doc<'leagues'> | null = null;
 
+        // Track metrics for comprehensive debugging
+        const metrics = {
+            totalTeamsToProcess: 0,
+            teamsProcessed: 0,
+            teamsSkipped: 0,
+            totalPlayersFound: 0,
+            playersProcessed: 0,
+            playersSkipped: 0,
+            statsCreated: 0,
+            statsUpdated: 0,
+            apiCallsSuccessful: 0,
+            apiCallsFailed: 0,
+            errors: [] as Array<{ type: string; message: string; meta?: any }>,
+        };
+
         try {
-            await logger.info('Starting player stats ingestion', { season: resolvedSeason, leagueId, teamId });
+            await logger.info('Starting player stats ingestion', {
+                season: resolvedSeason,
+                leagueId,
+                teamId,
+                timestamp: new Date().toISOString(),
+                process: 'initialization',
+            });
 
-            // Determine teams to process
-
+            // Determine teams to process with detailed logging
             if (teamId) {
+                await logger.info('Processing single team by teamId', { teamId, process: 'team-selection' });
                 const team = await ctx.runQuery(internal.services.teams.getTeam, { teamId });
                 if (team) {
                     teams = [team];
                     resolvedLeague = await ctx.runQuery(internal.services.leagues.getLeague, {
                         leagueId: team.leagueId,
                     });
+                    await logger.info('Single team found', {
+                        teamName: team.name,
+                        teamProviderId: team.providerTeamId,
+                        leagueId: team.leagueId,
+                        process: 'team-selection',
+                    });
+                } else {
+                    await logger.error('Team not found', { teamId, process: 'team-selection' });
+                    throw new Error(`Team not found: ${teamId}`);
                 }
             } else if (leagueId) {
+                await logger.info('Processing teams by leagueId', { leagueId, process: 'team-selection' });
                 resolvedLeague = await ctx.runQuery(internal.services.leagues.getLeague, { leagueId });
                 if (resolvedLeague) {
                     teams = await ctx.runQuery(internal.services.teams.getTeamsByLeagueInDB, { leagueId });
+                    await logger.info('Teams found for league', {
+                        leagueName: resolvedLeague.name,
+                        leagueProviderId: resolvedLeague.providerLeagueId,
+                        teamsCount: teams.length,
+                        teamNames: teams.map((t) => t.name),
+                        process: 'team-selection',
+                    });
+                } else {
+                    await logger.error('League not found', { leagueId, process: 'team-selection' });
+                    throw new Error(`League not found: ${leagueId}`);
                 }
             } else {
+                await logger.info('Processing all top leagues', { process: 'team-selection' });
                 const leagues = await ctx.runQuery(internal.services.leagues.getTopLeagues, {});
-                // Fetch teams for all leagues in parallel
+                await logger.info('Top leagues found', {
+                    leaguesCount: leagues.length,
+                    leagueNames: leagues.map((l) => l.name),
+                    process: 'team-selection',
+                });
+
+                // Fetch teams for all leagues in parallel with detailed tracking
                 const allTeamsArrays = await Promise.all(
-                    leagues.map((l) =>
-                        ctx.runQuery(internal.services.teams.getTeamsByLeagueInDB, {
+                    leagues.map(async (l) => {
+                        const leagueTeams = await ctx.runQuery(internal.services.teams.getTeamsByLeagueInDB, {
                             leagueId: l._id,
-                        }),
-                    ),
+                        });
+                        await logger.info('Teams found for league', {
+                            leagueName: l.name,
+                            leagueId: l._id,
+                            teamsCount: leagueTeams.length,
+                            teamNames: leagueTeams.map((t) => t.name),
+                            process: 'team-selection',
+                        });
+                        return leagueTeams;
+                    }),
                 );
                 teams = allTeamsArrays.flat();
             }
 
+            metrics.totalTeamsToProcess = teams.length;
+            await logger.info('Teams selection completed', {
+                totalTeamsToProcess: metrics.totalTeamsToProcess,
+                process: 'team-selection-complete',
+            });
+
             // For each team, fetch existing players and ingest stats
             await Bluebird.map(
                 teams,
-                async (team) => {
+                async (team, teamIndex) => {
+                    const teamStartTime = Date.now();
                     try {
+                        await logger.info(`Processing team ${teamIndex + 1}/${teams.length}`, {
+                            teamName: team.name,
+                            teamId: team._id,
+                            teamProviderId: team.providerTeamId,
+                            leagueId: team.leagueId,
+                            process: 'team-processing',
+                            teamIndex,
+                            totalTeams: teams.length,
+                        });
+
                         const league =
                             resolvedLeague ||
                             (await ctx.runQuery(internal.services.leagues.getLeague, { leagueId: team.leagueId }));
-                        if (!league) return;
+                        if (!league) {
+                            const errorMsg = `League not found for team ${team.name}`;
+                            metrics.errors.push({
+                                type: 'league-not-found',
+                                message: errorMsg,
+                                meta: { teamName: team.name, teamId: team._id, leagueId: team.leagueId },
+                            });
+                            await logger.error(errorMsg, {
+                                teamName: team.name,
+                                teamId: team._id,
+                                leagueId: team.leagueId,
+                                process: 'team-processing',
+                            });
+                            metrics.teamsSkipped++;
+                            return;
+                        }
 
                         const players = await ctx.runQuery(internal.services.players.getPlayersByTeamInDB, {
                             teamId: team._id,
                         });
+
+                        await logger.info('Players found for team', {
+                            teamName: team.name,
+                            leagueName: league.name,
+                            playersCount: players.length,
+                            playerNames: players.map((p) => p.name),
+                            process: 'player-discovery',
+                        });
+
                         if (!players.length) {
-                            await logger.warn('No players found for team when ingesting stats (skipping)', {
+                            const warnMsg = 'No players found for team when ingesting stats (skipping)';
+                            metrics.errors.push({
+                                type: 'no-players',
+                                message: warnMsg,
+                                meta: { teamName: team.name, teamId: team._id },
+                            });
+                            await logger.warn(warnMsg, {
                                 team: team.name,
                                 league: league.name,
                                 teamId: team._id,
+                                process: 'player-discovery',
                             });
+                            metrics.teamsSkipped++;
                             return;
                         }
 
+                        metrics.totalPlayersFound += players.length;
+
                         await Bluebird.map(
                             players,
-                            async (player) => {
+                            async (player, playerIndex) => {
+                                const playerStartTime = Date.now();
                                 try {
+                                    await logger.info(
+                                        `Processing player ${playerIndex + 1}/${players.length} for team ${team.name}`,
+                                        {
+                                            playerName: player.name,
+                                            playerId: player._id,
+                                            playerProviderId: player.providerPlayerId,
+                                            teamName: team.name,
+                                            leagueName: league.name,
+                                            process: 'player-processing',
+                                            playerIndex,
+                                            totalPlayersInTeam: players.length,
+                                        },
+                                    );
+
                                     const stats = await football.getPlayerStats(
                                         player.providerPlayerId,
                                         resolvedSeason,
                                     );
 
-                                    if (!stats) return;
+                                    if (!stats) {
+                                        const warnMsg = 'No stats returned from API';
+                                        metrics.errors.push({
+                                            type: 'no-api-stats',
+                                            message: warnMsg,
+                                            meta: {
+                                                playerName: player.name,
+                                                providerPlayerId: player.providerPlayerId,
+                                                season: resolvedSeason,
+                                            },
+                                        });
+                                        await logger.warn(warnMsg, {
+                                            playerName: player.name,
+                                            playerId: player._id,
+                                            playerProviderId: player.providerPlayerId,
+                                            season: resolvedSeason,
+                                            process: 'api-call',
+                                        });
+                                        metrics.apiCallsFailed++;
+                                        metrics.playersSkipped++;
+                                        return;
+                                    }
 
+                                    metrics.apiCallsSuccessful++;
+                                    await logger.info('Stats received from API', {
+                                        playerName: player.name,
+                                        playerProviderId: player.providerPlayerId,
+                                        season: resolvedSeason,
+                                        hasGames: !!stats.games,
+                                        hasGoals: !!stats.goals,
+                                        hasAssists: !!stats.goals?.assists,
+                                        appearances: stats.games?.appearences,
+                                        process: 'api-response',
+                                    });
+
+                                    // ...existing code for payload creation...
                                     const payload: WithoutSystemFields<Doc<'player_stats_snapshots'>> = {
                                         playerId: player._id,
                                         leagueId: league._id,
@@ -231,9 +387,15 @@ export const ingestPlayerStats = internalAction({
                                                 data: { ...payload, createdAt: existing.createdAt },
                                             },
                                         );
+                                        metrics.statsUpdated++;
                                         await logger.info('Updated player stats snapshot', {
                                             player: player.name,
                                             team: team.name,
+                                            league: league.name,
+                                            existingStatsId: existing._id,
+                                            season: resolvedSeason,
+                                            processingTimeMs: Date.now() - playerStartTime,
+                                            process: 'database-update',
                                         });
                                     } else {
                                         await ctx.runMutation(
@@ -242,35 +404,122 @@ export const ingestPlayerStats = internalAction({
                                                 data: payload,
                                             },
                                         );
+                                        metrics.statsCreated++;
                                         await logger.info('Created player stats snapshot', {
                                             player: player.name,
                                             team: team.name,
+                                            league: league.name,
+                                            season: resolvedSeason,
+                                            processingTimeMs: Date.now() - playerStartTime,
+                                            process: 'database-create',
                                         });
                                     }
+
+                                    metrics.playersProcessed++;
                                 } catch (error) {
+                                    const errorMsg = (error as Error).message;
+                                    metrics.errors.push({
+                                        type: 'player-processing-error',
+                                        message: errorMsg,
+                                        meta: { playerName: player.name, teamName: team.name },
+                                    });
                                     await logger.error('Failed to ingest player stats', {
                                         player: player.name,
                                         team: team.name,
-                                        error,
+                                        league: league.name,
+                                        error: errorMsg,
+                                        errorStack: (error as Error).stack,
+                                        processingTimeMs: Date.now() - playerStartTime,
+                                        process: 'player-error',
                                     });
+                                    metrics.playersSkipped++;
                                 }
                             },
                             { concurrency: 8 },
                         );
+
+                        metrics.teamsProcessed++;
+                        await logger.info(`Completed team processing`, {
+                            teamName: team.name,
+                            playersInTeam: players.length,
+                            teamProcessingTimeMs: Date.now() - teamStartTime,
+                            process: 'team-complete',
+                        });
                     } catch (err) {
+                        const errorMsg = (err as Error).message;
+                        metrics.errors.push({
+                            type: 'team-processing-error',
+                            message: errorMsg,
+                            meta: { teamName: team?.name },
+                        });
                         await logger.error('Failed to process team for player stats', {
                             team: team?.name,
-                            error: (err as Error).message,
+                            teamId: team?._id,
+                            error: errorMsg,
+                            errorStack: (err as Error).stack,
+                            teamProcessingTimeMs: Date.now() - teamStartTime,
+                            process: 'team-error',
                         });
+                        metrics.teamsSkipped++;
                     }
                 },
                 { concurrency: 3 },
             );
 
-            await logger.success('Player stats ingestion completed', { season: resolvedSeason, leagueId, teamId });
-            return { success: true } as const;
+            // Final comprehensive summary
+            await logger.success('Player stats ingestion completed', {
+                season: resolvedSeason,
+                leagueId,
+                teamId,
+                metrics: {
+                    totalTeamsToProcess: metrics.totalTeamsToProcess,
+                    teamsProcessed: metrics.teamsProcessed,
+                    teamsSkipped: metrics.teamsSkipped,
+                    totalPlayersFound: metrics.totalPlayersFound,
+                    playersProcessed: metrics.playersProcessed,
+                    playersSkipped: metrics.playersSkipped,
+                    statsCreated: metrics.statsCreated,
+                    statsUpdated: metrics.statsUpdated,
+                    apiCallsSuccessful: metrics.apiCallsSuccessful,
+                    apiCallsFailed: metrics.apiCallsFailed,
+                    totalErrors: metrics.errors.length,
+                    successRate:
+                        metrics.totalPlayersFound > 0
+                            ? ((metrics.playersProcessed / metrics.totalPlayersFound) * 100).toFixed(2) + '%'
+                            : '0%',
+                },
+                errorSummary: metrics.errors.reduce(
+                    (acc, error) => {
+                        acc[error.type] = (acc[error.type] || 0) + 1;
+                        return acc;
+                    },
+                    {} as Record<string, number>,
+                ),
+                process: 'final-summary',
+            });
+
+            // Log problematic teams if any
+            if (metrics.teamsSkipped > 0) {
+                await logger.warn('Some teams were skipped during processing', {
+                    teamsSkipped: metrics.teamsSkipped,
+                    totalTeams: metrics.totalTeamsToProcess,
+                    skipRate: ((metrics.teamsSkipped / metrics.totalTeamsToProcess) * 100).toFixed(2) + '%',
+                    process: 'teams-skipped-summary',
+                });
+            }
+
+            return { success: true, metrics } as const;
         } catch (error) {
-            await logger.error('Player stats ingestion failed', { error: (error as Error).message });
+            const errorMsg = (error as Error).message;
+            await logger.error('Player stats ingestion failed', {
+                error: errorMsg,
+                errorStack: (error as Error).stack,
+                season: resolvedSeason,
+                leagueId,
+                teamId,
+                metrics,
+                process: 'fatal-error',
+            });
             throw error;
         }
     },
